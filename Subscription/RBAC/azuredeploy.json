@@ -1,0 +1,29 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "subscription": {
+            "type": "object",
+            "metadata": {
+                "description": "An object of subscription parameters - currently just RBAC"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+      {
+        "type": "Microsoft.Authorization/roleAssignments",
+        "apiVersion": "2017-09-01",
+        "name": "[guid(subscription().id, parameters('subscription').RBAC[copyIndex('RBAC')].principalId, parameters('subscription').RBAC[copyIndex('RBAC')].roleId)]",
+        "copy": {
+            "name": "RBAC",
+            "count": "[length(parameters('subscription').RBAC)]"
+        },
+        "properties": {
+            "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('subscription').RBAC[copyIndex('RBAC')].roleId)]",
+            "principalId": "[parameters('subscription').RBAC[copyIndex('RBAC')].principalId]",
+            "scope": "[subscription().id]"
+        }
+      }
+    ]
+}
