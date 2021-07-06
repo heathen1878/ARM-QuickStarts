@@ -1,0 +1,171 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "Company":{
+            "type": "string",
+            "metadata": {
+                "description": "Company name - this is optional and usually defined for enterprise deployments"
+            },
+            "defaultValue": ""
+        },
+        "environment": {
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "usage":{
+            "type": "string",
+            "defaultValue": "ResourceGroupUsage",
+            "metadata": {
+                "description": "Used to build the resource group name e.g. identity resources would live in a resource group which contains the word identity, an application might use APP1"
+            }
+        },
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "The location of the resource group"
+            }
+        },
+        "resourceTags": {
+            "type": "object",
+            "defaultValue": {
+                "key": "value"
+            },
+            "metadata": {
+                "description": "Tags value pairs which get associated with the resource group"
+            }
+        },
+        "RBAC": {
+            "type": "array",
+            "metadata": {
+                "description": "An object of resource group RBAC assignments"
+            }
+        },
+        "DedicatedSubscription":{
+            "type": "string",
+            "defaultValue": "Yes",
+            "allowedValues":[   
+                "Yes",
+                "No"
+            ],
+            "metadata":{
+                "description": "Dedicated subscriptions get Azure Policies deployed, If the connectivity and management resource groups exist within the same subscription only one should be set to Yes."
+            }
+        }
+    },
+    "variables": {
+        "resourceGroupPrefix": "[if(empty(parameters('Company')), concat('RG-', toUpper(parameters('environment'))), concat('RG-', toUpper(parameters('Company')), '-', toUpper(parameters('environment'))))]",
+        "resourceGroupName": "[concat(variables('resourceGroupPrefix'), '-', toUpper(parameters('usage')), '-', replace(toUpper(parameters('location')), ' ', ''))]",
+        "AllowedLocations": "[createArray(parameters('location'))]",
+        "rgLocationPolicyId": "/providers/Microsoft.Authorization/policyDefinitions/e765b5de-1225-4ba3-bd56-1ac6695af988",
+        "resLocationPolicyId": "/providers/Microsoft.Authorization/policyDefinitions/e56962a6-4747-49cd-b67b-bf8b01975c4c"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/resourceGroups",
+            "apiVersion": "2019-10-01",
+            "name": "[variables('resourceGroupName')]",
+            "location": "[parameters('location')]",
+            "tags": "[parameters('resourceTags')]"
+        },
+        {
+            "condition": "[equals(parameters('DedicatedSubscription'), 'Yes')]",
+            "type": "Microsoft.Authorization/policyAssignments",
+            "apiVersion": "2019-09-01",
+            "name": "[guid(variables('rgLocationPolicyId'), parameters('Location'))]",
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+            ],
+            "properties":{
+                "displayName": "[concat('Allowed Locations for Resource Groups: ', parameters('location'))]",
+                "policyDefinitionId": "[variables('rgLocationPolicyId')]",
+                "parameters":{
+                "listOfAllowedLocations": {
+                        "value": "[variables('allowedLocations')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-10-01",
+            "name": "[guid(parameters('RBAC')[copyIndex('RBAC')].principalId, parameters('RBAC')[copyIndex('RBAC')].roleId, resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName')))]",
+            "copy": {
+                "name": "RBAC",
+                "count": "[length(parameters('RBAC'))]"
+            },
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+            ],
+            "resourceGroup": "[variables('resourceGroupName')]",            
+            "properties": {
+                "mode": "incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/roleAssignments",
+                            "apiVersion": "2017-09-01",
+                            "name": "[guid(parameters('RBAC')[copyIndex('RBAC')].principalId, parameters('RBAC')[copyIndex('RBAC')].roleId, resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName')))]",                
+                            "properties": {
+                                "roleDefinitionId": "[ResourceId('Microsoft.Authorization/roleDefinitions', parameters('RBAC')[copyIndex('RBAC')].roleId)]",
+                                "principalId": "[parameters('RBAC')[copyIndex('RBAC')].principalId]"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-10-01",
+            "name": "AllowedLocationsForResources",
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+            ],
+            "resourceGroup": "[variables('resourceGroupName')]",            
+            "properties": {
+                "mode": "incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/policyAssignments",
+                            "apiVersion": "2019-09-01",
+                            "name": "[guid(variables('resLocationPolicyId'), parameters('Location'))]",
+                            "properties":{
+                                "displayName": "[concat('Allowed Locations for Azure Resources: ', parameters('location'))]",
+                                "policyDefinitionId": "[variables('resLocationPolicyId')]",
+                                "parameters":{
+                                    "listOfAllowedLocations": {
+                                        "value": "[variables('allowedLocations')]"
+                                    } 
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "resourceGroup_Id": {
+            "type": "string",
+            "value": "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+        },
+        "resourceGroup_Name": {
+            "type": "string",
+            "value": "[variables('resourceGroupName')]"
+        },
+        "resourceGroupPolicy_Id":{
+            "condition": "[equals(parameters('DedicatedSubscription'), 'Yes')]",
+            "type": "string",
+            "value": "[resourceId('Microsoft.Authorization/policyAssignments', guid(variables('rgLocationPolicyId'), parameters('Location')))]"
+        }
+    }
+}

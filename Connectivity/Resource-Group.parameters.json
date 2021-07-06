@@ -1,0 +1,46 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "Company": {
+            "value": "Dom"
+        },
+        "environment": {
+            "value": "Demo"
+        },
+        "location": {
+            "value": "UK South"
+        },
+        "usage": {
+            "value": "Connectivity"
+        },
+        "resourceTags":{
+            "value": {
+                "application": "Connectivity Resources",
+                "businessContact": "Dom Clayton",
+                "department": "IT",
+                "description": "Contains connectivity resources such as vNets, subnets, VPN gateways, Azure Firewalls, and NSGs etc...",
+                "technicalContact": "Dom Clayton"
+            }
+        },
+        "RBAC": {
+            "value": [
+                {
+                    "roleId": "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+                    "principalId": ""
+                },
+                {
+                    "roleId": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+                    "principalId": ""
+                },
+                {
+                    "roleId": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+                    "principalId": ""
+                }
+            ]
+        },
+        "DedicatedSubscription": {
+            "value": "No"
+        }
+    }
+}
