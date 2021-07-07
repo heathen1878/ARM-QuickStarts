@@ -1,0 +1,91 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "environment": {
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "vNetPrefix": {
+            "type": "string",
+            "defaultValue": "10.10.0.0/24",
+            "metadata": {
+                "description": "Address prefix for vNet"
+            }
+        },
+        "resourceGroupSuffix": {
+            "type": "string",
+            "defaultValue": "RGName",
+            "metadata": {
+                "description": "used to label the vNet association"
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-10-01",
+            "name": "createNetworkWatcher",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "Network-Watcher.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "location": {
+                        "value": "[parameters('location')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-10-01",
+            "name": "createVirtualNetwork",
+            "dependsOn": [
+                "createNetworkWatcher"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "Virtual-Network.json"
+                },
+                "parameters": {
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "vNetPrefix": {
+                        "value": "[parameters('vNetPrefix')]"
+                    },
+                    "resourceGroupSuffix": {
+                        "value": "[parameters('resourceGroupSuffix')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "networkWatcher_Id":{
+            "type": "string",
+            "value": "[reference('createNetworkWatcher').outputs.networkWatcher_Id.value]"
+        },
+        "virtualNetwork_Id":{
+            "type": "string",
+            "value": "[reference('createVirtualNetwork').outputs.vNet_Id.value]"
+        }
+    }
+}
