@@ -1,0 +1,36 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "variables": {
+        "networkWatcher": "[concat('NW-', toUpper(parameters('location')))]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2019-09-01",
+            "type": "Microsoft.Network/networkWatchers",
+            "name": "[variables('networkWatcher')]",
+            "location": "[parameters('location')]",
+            "Properties": {
+            }
+        }
+    ],
+    "outputs": {
+        "networkWatcher_Id":{
+            "type": "string",
+            "value": "[resourceId('Mirosoft.Network/networkWatcher', variables('networkWatcher'))]"
+        },
+        "networkWatcher_Name":{
+            "type": "string",
+            "value": "[variables('networkWatcher')]"
+        }
+    }
+}

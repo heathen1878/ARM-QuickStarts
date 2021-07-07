@@ -1,0 +1,67 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment": {
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "vNetPrefix": {
+            "type": "string",
+            "defaultValue": "10.10.0.0/24",
+            "metadata": {
+                "description": "Address prefix for vNet"
+            }
+        },
+        "resourceGroupSuffix": {
+            "type": "string",
+            "defaultValue": "APPName",
+            "metadata": {
+                "description": "used to label the vNet association"
+            }
+        }
+    },
+    "variables": {
+        "vNetPrefix": "[replace(replace(parameters('vNetPrefix'),'/','-'),'.','-')]",
+        "vNetName": "[concat('VNET-', toUpper(parameters('environment')), '-', toUpper(parameters('resourceGroupSuffix')), '-', variables('vNetPrefix'))]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2019-09-01",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[variables('vNetName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+            ],
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[parameters('vNetPrefix')]"
+                    ]
+                },
+                "enableDdosProtection": false,
+                "enableVmProtection": false
+            }
+        }
+    ],
+    "outputs": {
+        "vNet_Id": {
+            "type": "string",
+            "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('vNetName'))]"
+        },
+        "vNet_Name":{
+            "type": "string",
+            "value": "[variables('vNetName')]"
+        }   
+    }
+}
