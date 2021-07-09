@@ -1,5 +1,7 @@
 # Resource Group ARM template
 
+[Home](../readme.md)
+
 The Resource-Group.json deploys a resource group taking the following parameters. 
 
 The parameter: company is used for naming convention, if parameter: company is omitted then the naming convention is adjusted using the variable: resourceGroupPrefix
