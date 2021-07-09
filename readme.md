@@ -32,3 +32,6 @@ New-AzTemplateSpec `
 
 ## Resource Groups
 [To deploy a resource group review this readme first](/Artifacts/Resource-Group.md)
+
+## Connectivity
+[Basic Connectivity](/Connectivity/readme.md)
