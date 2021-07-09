@@ -27,5 +27,8 @@ New-AzTemplateSpec `
 -DisplayName 'Connectivity - Network Watcher and vNet'
 ```
 
+## Azure DevOps
+[Service Connection](/AzureDevOps/readMe.md)
+
 ## Resource Groups
 [To deploy a resource group review this readme first](/Artifacts/Resource-Group.md)
