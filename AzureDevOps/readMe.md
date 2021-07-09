@@ -17,7 +17,7 @@ DevOps.
 
 ![Service Principal](https://stdevt4z3f7au4f3xe.blob.core.windows.net/images/CreateServicePrincipal.PNG)
 
-This can be used within Azure DevOps to create a Service Connection. You'll also need the subscription Id too.
+This can be used within Azure DevOps to create a Service Connection.
 
 ![Service Connection](https://stdevt4z3f7au4f3xe.blob.core.windows.net/images/ServiceConnection.PNG)
 
