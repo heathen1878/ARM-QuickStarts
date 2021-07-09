@@ -1,0 +1,106 @@
+parameters:
+  - name: stage_name
+  - name: environment
+  - name: location
+  - name: company
+  - name: serviceConn
+
+stages:
+- stage: ${{ parameters.stage_name }}
+  jobs:
+  - deployment: DeployConnectivity
+    environment: ${{ parameters.environment }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: none
+          - checkout: self
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Create Resource Group
+            inputs:
+              deploymentScope: Subscription
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Resource-Groups.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\Connectivity\Resource-Groups.parameters.json
+              overrideParameters:
+                -environment ${{ upper(parameters.environment) }}
+                -location ${{ parameters.location }}
+              deploymentMode: Incremental
+              deploymentOutputs: 'resourceGroup'
+
+          - task: AzurePowerShell@4
+            displayName: Get the resource group name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: |
+                $var=ConvertFrom-Json '$(resourceGroup)'
+                $value=$var.resourceGroup_Name.value
+                Write-Host "##vso[task.setvariable variable=resourceGroup_Name;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Create a storage account
+            inputs:
+              deploymentScope: Resource Group
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              action: Create Or Update Resource Group
+              resourceGroupName: $(resourceGroup_Name)
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Storage-Account.json
+              overrideParameters:
+                -environment ${{ parameters.environment }}
+                -companyPrefix ${{ parameters.company }}
+                -suffix "connectivitytemplates"
+                -resourceTags "value"
+              deploymentMode: Incremental
+              deploymentOutputs: 'storageOutput'
+
+          - task: AzurePowerShell@4
+            displayName: Get the storage account name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: |
+                $var=ConvertFrom-Json '$(storageOutput)'
+                $value=$var.storageAccountName.value
+                Write-Host "##vso[task.setvariable variable=storageAccountName;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzureFileCopy@3
+            displayName: Copy deployment artifacts to the storage account
+            inputs:
+              sourcePath: '$(System.DefaultWorkingDirectory)\LandingZone'
+              azureSubscription: ${{ parameters.serviceConn }}
+              destination: azureBlob
+              storage: $(storageAccountName)
+              containerName: 'armtemplates'
+              cleanTargetBeforeCopy: true
+              outputStorageUri: artifactsLocation
+              outputStorageContainerSasToken: artifactsLocationSasToken
+              sasTokenTimeOutInMinutes: 30
+
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Deploy connectivty resources
+            inputs:
+              deploymentScope: 'Resource Group'
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              action: Create Or Update Resource Group
+              resourceGroupName: 'RG-${{ parameters.environment }}-SHARED-${{ parameters.location }}'
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\ConnectivityBasicLinkedTemplate.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\Connectivity\ConnectivityLinkedTemplate.parameters.json
+              overrideParameters:
+                -environment ${{ parameters.environment }}
+                -_artifactsLocation $(artifactsLocation)
+                -_artifactsLocationSasToken $(artifactsLocationSasToken)
+                -companyPrefix ${{ parameters.company }}
+              deploymentMode: Incremental
+              deploymentOutputs: 'connectivityOutput'
