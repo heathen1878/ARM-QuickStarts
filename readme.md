@@ -26,3 +26,6 @@ New-AzTemplateSpec `
 -TemplateFile 'ConnectivityTemplateSpec.json' `
 -DisplayName 'Connectivity - Network Watcher and vNet'
 ```
+
+## Resource Groups
+[To deploy a resource group review this readme first](/Artifacts/Resource-Group.md)
