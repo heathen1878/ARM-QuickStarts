@@ -1,0 +1,16 @@
+trigger: none
+
+variables:
+  - template: variables.yml
+
+pool:
+  vmImage: windows-latest
+
+stages:
+  - template: connectivity_release.yml
+    parameters:
+      stage_name: DeployToDev
+      environment: Dev
+      location: ${{ upper(variables.azure_region) }}
+      company: ${{ upper(variables.company) }}
+      serviceConn: ${{ variables.devServiceConn }}
