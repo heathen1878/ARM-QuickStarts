@@ -24,7 +24,8 @@ New-AzTemplateSpec `
 -Version '1.0.0.0' `
 -Description 'Deploys a network watcher and vNet resource' `
 -TemplateFile 'ConnectivityTemplateSpec.json' `
--DisplayName 'Connectivity - Network Watcher and vNet'
+-DisplayName 'Connectivity - Network Watcher and vNet' `
+-Location 'UK South'
 ```
 
 ## Azure DevOps
