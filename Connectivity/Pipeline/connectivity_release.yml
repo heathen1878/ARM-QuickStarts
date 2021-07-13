@@ -23,8 +23,8 @@ stages:
               azureResourceManagerConnection: ${{ parameters.serviceConn }}
               location: ${{ parameters.location }}
               templateLocation: Linked artifact
-              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Resource-Groups.json
-              csmParametersFile: $(System.DefaultWorkingDirectory)\Connectivity\Resource-Groups.parameters.json
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Resource-Group.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\Connectivity\Resource-Group.parameters.json
               overrideParameters:
                 -environment ${{ upper(parameters.environment) }}
                 -location ${{ parameters.location }}
