@@ -17,19 +17,19 @@ stages:
           - download: none
           - checkout: self
           - task: AzureResourceManagerTemplateDeployment@3
-            displayName: Create Resource Group
+            displayName: Create Resource Group for deployment resources
             inputs:
               deploymentScope: Subscription
               azureResourceManagerConnection: ${{ parameters.serviceConn }}
               location: ${{ parameters.location }}
               templateLocation: Linked artifact
               csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Resource-Group.json
-              csmParametersFile: $(System.DefaultWorkingDirectory)\Connectivity\Resource-Group.parameters.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\Deploy\Resource-Group.parameters.json
               overrideParameters:
                 -environment ${{ upper(parameters.environment) }}
                 -location ${{ parameters.location }}
               deploymentMode: Incremental
-              deploymentOutputs: 'resourceGroup'
+              deploymentOutputs: 'deploymentRG'
 
           - task: AzurePowerShell@4
             displayName: Get the resource group name
@@ -37,27 +37,27 @@ stages:
               azureSubscription: ${{ parameters.serviceConn }}
               scriptType: InlineScript
               Inline: |
-                $var=ConvertFrom-Json '$(resourceGroup)'
+                $var=ConvertFrom-Json '$(deploymentRG)'
                 $value=$var.resourceGroup_Name.value
-                Write-Host "##vso[task.setvariable variable=resourceGroup_Name;]$value"
+                Write-Host "##vso[task.setvariable variable=deploymentRG_Name;]$value"
               azurePowerShellVersion: latestVersion
               pwsh: true
 
           - task: AzureResourceManagerTemplateDeployment@3
-            displayName: Create a storage account
+            displayName: Create a storage account for deployment resources
             inputs:
               deploymentScope: Resource Group
               azureResourceManagerConnection: ${{ parameters.serviceConn }}
               action: Create Or Update Resource Group
-              resourceGroupName: $(resourceGroup_Name)
+              resourceGroupName: $(deploymentRG_Name)
               location: ${{ parameters.location }}
               templateLocation: Linked artifact
               csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Storage-Account.json
               overrideParameters:
                 -environment ${{ parameters.environment }}
                 -companyPrefix ${{ parameters.company }}
-                -suffix "connectivitytemplates"
-                -resourceTags "value"
+                -suffix "ARMTemplates"
+                -resourceTags {"usage":"ARM Templates"}
               deploymentMode: Incremental
               deploymentOutputs: 'storageOutput'
 
@@ -76,7 +76,7 @@ stages:
           - task: AzureFileCopy@3
             displayName: Copy deployment artifacts to the storage account
             inputs:
-              sourcePath: '$(System.DefaultWorkingDirectory)\LandingZone'
+              sourcePath: '$(System.DefaultWorkingDirectory)\Artifacts'
               azureSubscription: ${{ parameters.serviceConn }}
               destination: azureBlob
               storage: $(storageAccountName)
@@ -87,12 +87,40 @@ stages:
               sasTokenTimeOutInMinutes: 30
 
           - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Create Resource Group for connectivity resources
+            inputs:
+              deploymentScope: Subscription
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Resource-Group.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\Connectivity\Resource-Group.parameters.json
+              overrideParameters:
+                -environment ${{ upper(parameters.environment) }}
+                -location ${{ parameters.location }}
+              deploymentMode: Incremental
+              deploymentOutputs: 'connectivityRG'
+
+          - task: AzurePowerShell@4
+            displayName: Get the resource group name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: |
+                $var=ConvertFrom-Json '$(connectivityRG)'
+                $value=$var.resourceGroup_Name.value
+                Write-Host "##vso[task.setvariable variable=connectivityRG_Name;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          
+          - task: AzureResourceManagerTemplateDeployment@3
             displayName: Deploy connectivty resources
             inputs:
               deploymentScope: 'Resource Group'
               azureResourceManagerConnection: ${{ parameters.serviceConn }}
               action: Create Or Update Resource Group
-              resourceGroupName: 'RG-${{ parameters.environment }}-SHARED-${{ parameters.location }}'
+              resourceGroupName: $(connectivityRG_Name)
               location: ${{ parameters.location }}
               templateLocation: Linked artifact
               csmFile: $(System.DefaultWorkingDirectory)\Artifacts\ConnectivityBasicLinkedTemplate.json
@@ -101,6 +129,5 @@ stages:
                 -environment ${{ parameters.environment }}
                 -_artifactsLocation $(artifactsLocation)
                 -_artifactsLocationSasToken $(artifactsLocationSasToken)
-                -companyPrefix ${{ parameters.company }}
               deploymentMode: Incremental
               deploymentOutputs: 'connectivityOutput'
