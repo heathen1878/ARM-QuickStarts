@@ -1,0 +1,156 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "companyPrefix":{
+            "type": "string",
+            "defaultValue": "XXX",
+            "metadata": {
+                "description": "Used for creating random strings where unique names are required."
+            }
+        },
+        "environment" :{
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "dataRetention": {
+            "type": "int",
+            "defaultValue": 31,
+            "minValue": 0,
+            "maxValue": 365,
+            "metadata": {
+                "displayName": "Log retention in days",
+                "description": "Number of days data will be retained for"
+            }
+        },
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "logAnalyticsService": {
+            "type": "string",
+            "defaultValue": "Shared",
+            "metadata": {
+                "description": "The service denotes what the Log Analytics are used for, it maybe all logs or a subset of logs for example Automation logs."
+            }
+        },
+        "ingestionAccess": {
+            "type": "string",
+            "defaultValue": "Enabled",
+            "metadata": {
+                "description": "Enabled by default, which allows public access, if this is disabled an Azure Private Link is required."
+            }
+        },
+        "queryAccess": {
+            "type": "string",
+            "defaultValue": "Enabled",
+            "metadata": {
+                "description": "Enabled by default, which allows public access, if this is disabled an Azure Private Link is required."
+            }
+        },
+        "deployVMInsights":{
+            "type": "string",
+            "defaultValue":"No",
+            "allowedValues":[
+                "Yes",
+                "No"
+            ],
+            "metadata":{
+                "description":"Should the VM insights be enabled within the workspace?"
+            }
+        }
+    },
+    "variables": {
+        "randomString": "[uniqueString(concat(parameters('companyPrefix'), parameters('logAnalyticsService'), parameters('location')))]",
+        "logAnalyticsWorkspaceName": "[concat('LOG-', toUpper(parameters('environment')), '-', toUpper(variables('randomString')), '-', toUpper(parameters('location')))]",
+        "resourceTags": {
+            "usage": "[parameters('logAnalyticsService')]"
+        },
+        "logAnalyticsWorkspace_Id": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "name": "[variables('logAnalyticsWorkspaceName')]",
+            "apiVersion": "2020-03-01-preview",
+            "location": "[parameters('location')]",
+            "tags": "[variables('resourceTags')]",
+            "properties": {
+                "sku": {
+                    "Name": "pergb2018"
+                },
+                "retention": "[parameters('dataRetention')]",
+                "publicNetworkAccessForIngestion": "[parameters('ingestionAccess')]",
+                "publicNetworkAccessForQuery": "[parameters('queryAccess')]"
+            }
+        },
+        {
+            "type": "Microsoft.OperationsManagement/solutions",
+            "apiVersion": "2015-11-01-preview",
+            "name": "[concat('AzureActivity(', variables('logAnalyticsWorkspaceName'),')')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('microsoft.operationalinsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+            ],
+            "plan": {
+                "name": "[concat('AzureActivity(', variables('logAnalyticsWorkspaceName'),')')]",
+                "promotionCode": "",
+                "product": "[concat('OMSGallery/', 'AzureActivity')]",
+                "publisher": "Microsoft"
+            },
+            "properties": {
+                "workspaceResourceId": "[variables('logAnalyticsWorkspace_Id')]",
+                "containedResources": [
+                    "[concat(resourceId('microsoft.operationalinsights/workspaces', variables('logAnalyticsWorkspaceName')), '/views/AzureActivity(',variables('logAnalyticsWorkspaceName'))]"
+                ]
+            }
+        },
+        {
+            "condition": "[equals(parameters('deployVMInsights'), 'Yes')]",
+            "type": "Microsoft.OperationsManagement/solutions",
+            "apiVersion": "2015-11-01-preview",
+            "name": "[concat('VMInsights(', variables('logAnalyticsWorkspaceName'),')')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('microsoft.operationalinsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+            ],
+            "properties": {
+                "workspaceResourceId": "[variables('logAnalyticsWorkspace_Id')]"
+            },
+            "plan": {
+                "name": "[concat('VMInsights(', variables('logAnalyticsWorkspaceName'), ')')]",
+                "product": "[concat('OMSGallery/', 'VMInsights')]",
+                "promotionCode": "",
+                "publisher": "Microsoft"
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/datasources",
+            "apiVersion": "2015-11-01-preview",
+            "name": "[concat(variables('logAnalyticsWorkspaceName'), '/', subscription().subscriptionId)]",
+            "location": "[parameters('location')]",
+            "kind": "AzureActivityLog",
+            "dependsOn": [
+                "[variables('logAnalyticsWorkspaceName')]"
+            ],
+            "properties": {
+                "linkedResourceId": "[concat(subscription().Id, '/providers/microsoft.insights/eventTypes/management')]"
+            }
+        }
+    ],
+    "outputs": {
+        "logAnalyticsResourceId":{
+            "type": "string",
+            "value": "[variables('logAnalyticsWorkspace_Id')]"
+        },
+        "logAnalyticsWorkspaceName": {
+            "type": "string",
+            "value": "[variables('logAnalyticsWorkspaceName')]"
+        }
+    }
+}
