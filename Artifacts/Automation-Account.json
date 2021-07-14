@@ -1,0 +1,80 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment" :{
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "service": {
+            "type": "string",
+            "defaultValue": "Shared",
+            "metadata": {
+                "description": "The service associated for Azure Automation"
+            }
+        },
+        "aaSku":{
+            "type": "string",
+            "defaultValue": "Basic",
+            "metadata": {
+                "description": "The name property can be either Free or Basic"
+            }
+        },
+        "logAnalyticsWorkspace_Id":{
+            "type": "string",
+            "metadata": {
+                "description": "The workspace resource Id, key vault will use for diagnostic logging"
+            }
+        }
+    },
+    "variables":{
+        "automationAccountName": "[concat('AA-',toUpper(parameters('environment')),'-',toUpper(parameters('service')), '-', toUpper(parameters('location')))]",
+        "automationAccount_Id": "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+        "logAnalyticsWorkspaceName": "[split(toUpper(parameters('logAnalyticsWorkspace_Id')), '/')[8]]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Automation/automationAccounts",
+            "apiVersion": "2015-10-31",
+            "name": "[variables('automationAccountName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "sku": {
+                    "name": "[parameters('aaSku')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces/linkedServices",
+            "apiVersion": "2020-08-01",
+            "name": "[concat(variables('logAnalyticsWorkspaceName'), '/' , 'Automation')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[variables('automationAccount_Id')]"
+            ],
+            "properties": {
+                "resourceId": "[variables('automationAccount_Id')]"
+            }
+        }
+    ],
+    "outputs":{
+        "automationAccount_Id":{
+            "type": "string",
+            "value": "[variables('automationAccount_Id')]"
+        },
+        "automationAccountName":{
+            "type": "string",
+            "value": "[variables('automationAccountName')]"
+        }
+    }
+}
