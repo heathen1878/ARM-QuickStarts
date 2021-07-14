@@ -7,7 +7,7 @@ pool:
   vmImage: windows-latest
 
 stages:
-  - template: connectivity_release.yml
+  - template: management_release.yml
     parameters:
       stage_name: DeployToDemo
       environment: Demo

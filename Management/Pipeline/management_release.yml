@@ -1,0 +1,32 @@
+parameters:
+  - name: stage_name
+  - name: environment
+  - name: location
+  - name: company
+  - name: serviceConn
+
+stages:
+- stage: ${{ parameters.stage_name }}
+  jobs:
+  - deployment: DeployConnectivity
+    environment: ${{ parameters.environment }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: none
+          - checkout: self
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Create Resource Group for deployment resources
+            inputs:
+              deploymentScope: Subscription
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Resource-Group.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\Deploy\Resource-Group.parameters.json
+              overrideParameters:
+                -environment ${{ upper(parameters.environment) }}
+                -location ${{ parameters.location }}
+              deploymentMode: Incremental
+              deploymentOutputs: 'deploymentRG'
