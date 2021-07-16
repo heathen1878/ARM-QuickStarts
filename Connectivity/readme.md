@@ -6,19 +6,33 @@ The artifact ConnectivityBasicLinkedTemplate.json and ConnectivityBasicTemplateS
 
 You can deploy these templates using PowerShell or an Azure DevOps Pipeline; a working Azure DevOps Pipeline can be found [here](https://github.com/heathen1878/Azure/blob/master/Connectivity/readme.md) 
 
-## Template Spec
-
 ### PowerShell
 
-To deploy a template spec you'll need a resource group - see the example below
+First of all you'll need to setup your [deployment](../Deploy/readme.md) artifacts
+
+Now everything is in place to start a deployment.
+
+Create a resource group
 
 ```powershell
-New-AzDeployment `
+$connectivityResourceGroupOutputs = New-AzDeployment `
 -Name (-Join("Deploy-Resource-Group-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute))`
 -Location "UK South" `
--TemplateFile .\Artifacts\Resource-Group.json -TemplateParameterFile .\Artifacts\Resource-Group.parameters.json
+-TemplateFile .\Resource-Group.json -TemplateParameterFile ..\Connectivity\Resource-Group.parameters.json
 ```
 
+Run the deployment
+
+```powershell
+New-AzResourceGroupDeployment -Name (-Join("Deploy-Conncectivity-Basic-Linked-Template-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) ` 
+-ResourceGroupName $resourceGroupOutputs.Outputs.resourceGroup_Name `
+-TemplateFile .\ConnectivityBasicLinkedTemplate.json -TemplateParameterFile ..\Connectivity\ConnectivityBasicLinkedTemplate.parameters.json `
+-_artifactsLocation $artifactsLocation `
+-_artifactsLocationSasToken $artifactsKey
+```
+
+## Template spec 
+WIP
 Then you'll need to deploy the template spec
 
 ```powershell

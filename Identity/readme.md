@@ -2,12 +2,13 @@
 
 [Home](../readme.md)
 
-The artifact VirtualMachineBasicLinkedTemplate.json deploys the following:
+The artifacts used here deploy the following:
 
 * Storage acccount for boot diagnostics
 * Key vault
 * Network Security Group with ruleset
-* One or more virtual machines. 
+* Creates secrets as specified
+* One or more virtual machines 
 
 The prerequisites for this template are: 
 
@@ -19,48 +20,33 @@ You can deploy these templates using PowerShell or an Azure DevOps Pipeline.
 
 ### PowerShell
 
-First of all you'll need a resource group
+First of all you'll need to setup your [deployment](../Deploy/readme.md) artifacts
+
+Now everything is in place to start a deployment.
+
+Create a resource group
 
 ```powershell
-New-AzDeployment `
+$resourceGroupOutputs = New-AzDeployment `
 -Name (-Join("Deploy-Resource-Group-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute))`
 -Location "UK South" `
--TemplateFile .\Resource-Group.json -TemplateParameterFile .\Resource-Group.parameters.json
+-TemplateFile .\Resource-Group.json -TemplateParameterFile ..\Identity\Resource-Group.parameters.json
 ```
 
-Then you'll need to deploy a storage account to store the ARM artifacts - this is because the template references other ARM templates and those templates must be accessible to the Azure Resource Manager.
+As above you'll need a [virtual network](../Connectivity/readme.md)
+
+Create a subnet
 
 ```powershell
-New-AzResourceGroupDeployment `
--Name (-Join("Deploy-Storage-Account-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
--Location "UK South" `
--TemplateFile .\Storage-Account.json -TemplateParameterFile .\Storage-Account.parameters.json
+$subnetOutputs = New-AzResourceGroupDeployment -Name (-Join("Deploy-Virtual-Network-Subnet-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+-ResourceGroupName $connectivityResourceGroupName.Outputs.resourceGroupName.value `
+-TemplateFile .\Virtual-Network-Subnet.json `
+-TemplateParameterFile ..\Identity\Virtual-Network-Subnet.parameters.json
+
+
 ```
 
 
-
 ```powershell
-New-AzTemplateSpec `
--ResourceGroupName 'RG-DEMO-ARTIFACTS-UKSOUTH' `
--Name 'Connectivity-Basic' `
--Version '1.0.0.0' `
--Description 'Deploys a network watcher and vNet resource' `
--TemplateFile 'ConnectivityTemplateSpec.json' `
--DisplayName 'Connectivity - Network Watcher and vNet' `
--Location 'UK South'
-```
-
-Then run a deployment using the template spec by creating a resource for the deployment
-
-```powershell
-New-AzDeployment -Name (-Join("Deploy-Resource-Group-",(Get-Date).Day,"-",`
->> (Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) -Location "UK South" -TemplateFile Resource-Group.json -TemplateParameterFile ..\Connectivity\Resource-Group.parameters.json
-```
-
-Then deploying the template spec
-
-```powershell
-
-
-
+New-AzResourceGroupDeployment -Name (-Join("Deploy-Storage-Account-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) ` -ResourceGroupName "RG-DOM-DEMO-IDENTITY-UKSOUTH" -TemplateFile .\VirtualMachineBasicLinkedTemplate.json -TemplateParameterFile ..\Identity\VirtualMachineBasicLinkedTemplate.parameters.json -_artifactsLocation $artifactsLocation -_artifactsLocationSasToken $artifactsKey
 ```
