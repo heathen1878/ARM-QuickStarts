@@ -8,7 +8,7 @@ parameters:
 stages:
 - stage: ${{ parameters.stage_name }}
   jobs:
-  - deployment: DeployConnectivity
+  - deployment: DeployManagement
     environment: ${{ parameters.environment }}
     strategy:
       runOnce:
@@ -30,3 +30,58 @@ stages:
                 -location ${{ parameters.location }}
               deploymentMode: Incremental
               deploymentOutputs: 'deploymentRG'
+
+          - task: AzurePowerShell@4
+            displayName: Get the resource group name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: |
+                $var=ConvertFrom-Json '$(deploymentRG)'
+                $value=$var.resourceGroup_Name.value
+                Write-Host "##vso[task.setvariable variable=deploymentRG_Name;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Create a storage account for deployment resources
+            inputs:
+              deploymentScope: Resource Group
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              action: Create Or Update Resource Group
+              resourceGroupName: $(deploymentRG_Name)
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Storage-Account.json
+              overrideParameters:
+                -environment ${{ parameters.environment }}
+                -companyPrefix ${{ parameters.company }}
+                -suffix "ARMTemplates"
+                -resourceTags {"usage":"ARM Templates"}
+              deploymentMode: Incremental
+              deploymentOutputs: 'storageOutput'
+
+          - task: AzurePowerShell@4
+            displayName: Get the storage account name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: |
+                $var=ConvertFrom-Json '$(storageOutput)'
+                $value=$var.storageAccountName.value
+                Write-Host "##vso[task.setvariable variable=storageAccountName;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzureFileCopy@3
+            displayName: Copy deployment artifacts to the storage account
+            inputs:
+              sourcePath: '$(System.DefaultWorkingDirectory)\Artifacts'
+              azureSubscription: ${{ parameters.serviceConn }}
+              destination: azureBlob
+              storage: $(storageAccountName)
+              containerName: 'armtemplates'
+              cleanTargetBeforeCopy: true
+              outputStorageUri: artifactsLocation
+              outputStorageContainerSasToken: artifactsLocationSasToken
+              sasTokenTimeOutInMinutes: 30
