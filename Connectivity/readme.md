@@ -4,7 +4,7 @@
 
 The artifact ConnectivityBasicLinkedTemplate.json and ConnectivityBasicTemplateSpec deploys a network watcher and virtual network. 
 
-You can deploy these templates using PowerShell or an Azure DevOps Pipeline. 
+You can deploy these templates using PowerShell or an Azure DevOps Pipeline; a working Azure DevOps Pipeline can be found [here](https://github.com/heathen1878/Azure/blob/master/Connectivity/readme.md) 
 
 ## Template Spec
 
