@@ -2,7 +2,7 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "companyPrefix":{
+        "company":{
             "type": "string",
             "defaultValue": "XXX",
             "metadata": {
@@ -88,7 +88,7 @@
         }
     },
     "variables": {
-        "randomString": "[uniqueString(concat(parameters('companyPrefix'), parameters('kvUsage'), parameters('location')))]",
+        "randomString": "[uniqueString(concat(parameters('company'), parameters('kvUsage'), parameters('location')))]",
         "Name": "[concat('KV-', toUpper(parameters('environment')), '-', toUpper(variables('randomString')))]",
         "resourceTags": {
             "usage": "[parameters('kvUsage')]"

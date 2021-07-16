@@ -63,11 +63,11 @@
         }
     ],
     "outputs": {
-        "diagnosticsStorageAccountName":{
+        "storageAccountName":{
             "type": "string",
             "value": "[variables('diagnosticStorageAccountName')]"
         },
-        "diagnosticsStorageAccountId":{
+        "storageAccountId":{
             "type":"string",
             "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('diagnosticStorageAccountName'))]"
         }
