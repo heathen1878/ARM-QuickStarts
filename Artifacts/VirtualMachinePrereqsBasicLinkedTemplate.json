@@ -1,0 +1,208 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "environment": {
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "company": {
+            "type": "string",
+            "defaultValue": "XXX",
+            "metadata": {
+                "description": "Used for creating random strings where unique names are required."
+            }
+        },
+        "suffix": {
+            "type": "string",
+            "defaultValue": "storage",
+            "metadata":{
+                "description": "used to generate a random string"
+            }
+        },
+        "resourceTags": {
+            "type": "object",
+            "defaultValue": {
+                "usage": "storage"
+            },
+            "metadata":{
+                "description": "Mandatory requirement to denote what the storage account is used for e.g. Compute diagnostics, NSG flow logs etc."
+            }
+        },
+        "subnetName": {
+            "type": "string",
+            "metadata":{
+                "description": "The friendly name of the subnet e.g. Inrastructure"
+            }
+        },
+        "rule": {
+            "type": "object",
+            "metadata": {
+                "description": "A single object or array of objects which define the security rules"
+            }
+        },
+        "kvUsage": {
+            "type": "string",
+            "metadata": {
+                "description": "Application or service e.g. APP1 or ARM"
+            },
+            "defaultValue": ""
+        },
+        "enabledForTemplateDeployment": {
+            "type": "bool",
+            "metadata": {
+                "description": "Specifies whether Azure Resource Manager is permitted to retrieve secrets from the key vault."
+            },
+            "defaultValue": false,
+            "allowedValues": [
+                true,
+                false
+            ]
+        },
+        "logAnalyticsWorkspace_Id":{
+            "type": "string",
+            "metadata": {
+                "description": "The workspace, key vault will use for diagnostic logging"
+            }
+        },
+        "keyVaultAdminGroup":{
+            "type": "string",
+            "metadata": {
+                "description": "the object Id of the Key Vault Admin Group."
+            }
+        },
+        
+        "_artifactsLocation": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The base URI where artifacts required by this template are located."
+            }
+        },
+        "_artifactsLocationSasToken": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+            }
+        }
+    },
+    "variables": {
+        "linkedTemplates":{
+            "diagStorage": "[concat(parameters('_artifactsLocation'), 'Storage-Account.json', parameters('_artifactsLocationSasToken'))]",
+            "nsg": "[concat(parameters('_artifactsLocation'), 'Network-Security-Group.json', parameters('_artifactsLocationSasToken'))]",
+            "keyVault": "[concat(parameters('_artifactsLocation'), 'Key-Vault.json', parameters('_artifactsLocationSasToken'))]"
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createDiagnosticStorage",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').diagStorage]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "company": {
+                        "value": "[parameters('company')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "suffix": {
+                        "value": "[parameters('suffix')]"
+                    },
+                    "resourceTags": {
+                        "value": "[parameters('resourceTags')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createNetworkSecurityGroup",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').nsg]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "subnet_Name": {
+                        "value": "[parameters('subnetName')]"
+                    },
+                    "rule": {
+                        "value": "[parameters('rule')]"
+                    }       
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createKeyVault",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').keyVault]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "company": {
+                        "value": "[parameters('company')]"
+                    },
+                    "enabledForTemplateDeployment": {
+                        "value": "[parameters('enabledForTemplateDeployment')]"
+                    },
+                    "kvUsage": {
+                        "value": "[parameters('kvUsage')]"
+                    },
+                    "logAnalyticsWorkspace_Id": {
+                        "value": "[parameters('logAnalyticsWorkspace_Id')]"
+                    },
+                    "keyVaultAdminGroup": {
+                        "value": "[parameters('keyVaultAdminGroup')]"
+                    }
+                }
+            }    
+        }
+    ],
+    "outputs": {
+        "nsg_Id": {
+            "type": "string",
+            "value": "[reference('createNetworkSecurityGroup').outputs.nsg_Id.value]"
+        },
+        "storage_Name": {
+            "type": "string",
+            "value": "[reference('createDiagnosticStorage').outputs.storageAccountName.value]"
+        },
+        "keyVault_Name": {
+            "type": "string",
+            "value": "[reference('createKeyVault').outputs.keyVaultName.value]"
+        },
+        "keyVault_Id": {
+            "type": "string",
+            "value": "[reference('createKeyVault').outputs.keyVaultId.value]"
+        }
+    }
+}
