@@ -1,0 +1,73 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "vNet_Id":{
+            "type": "string",
+            "defaultValue": "",
+            "metadata":{
+                "description": "The resource Id of the vNet where the gateway subnet will reside."
+            }
+        },
+        "subnetAddressPrefix":{
+            "type": "string",
+            "metadata": {
+                "description": "The subnet address prefix must reside within the vNet you are deploying the subnet to."
+            }
+        },
+        "subnetName":{
+            "type": "string",
+            "metadata":{
+                "description": "The friendly name of the subnet e.g. Inrastructure"
+            }
+        },
+        "NSG_Id":{
+            "type": "string",
+            "defaultValue": "",
+            "metadata":{
+                "description": "The resource Id of the NSG assigned to the subnet"
+            }
+        },
+        "routeTableForAzureFirewall_Id":{
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "If Azure Firewall is being deployed then the subnet will need to be associated with a route table resource Id"
+            }
+        }
+    },
+    "variables":{
+        "vNetName": "[split(parameters('vNet_Id'), '/')[8]]"
+    },
+    "resources": [
+        {
+            "name": "[concat(variables('vNetName'), '/', parameters('subnetName'))]",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2019-09-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "addressPrefix": "[parameters('subnetAddressPrefix')]",
+                "networkSecurityGroup": "[if(empty(parameters('NSG_Id')), json('null'), json(concat('{\"id\": \"', parameters('NSG_Id'), '\"}')))]",
+                "routeTable": "[if(empty(parameters('routeTableForAzureFirewall_Id')), json('null'), json(concat('{\"id\": \"', parameters('routeTableForAzureFirewall_Id'), '\"}')))]",
+                "privateEndpointNetworkPolicies": "Disabled"
+            }
+        }
+    ],
+    "outputs":{
+        "subnet_Id":{
+            "type": "string",
+            "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), parameters('subnetName'))]"
+        },
+        "subnet_IP_Range":{
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), parameters('subnetName')), '2019-09-01').addressPrefix]"
+        }
+    }
+}
