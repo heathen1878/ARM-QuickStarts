@@ -57,7 +57,8 @@ $vmPrereqs = New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Prereqs
 
 Create some credentials for the VM deployment. The functions PowerShell script contains two functions; the first function generates a password and the second function uses the GeneratePassword function and adds the secrets to the key vault. 
 
-** NOTE **
+**NOTE**
+
 If your user is not assigned the Key Vault Administrator role - implicity or explicity - then you'll need to make sure it is...and if this is in the form of a group membership change, you'll need to logout and log back in. 
 
 ```powershell
