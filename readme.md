@@ -12,3 +12,6 @@
 
 ## Connectivity
 [Basic Connectivity](/Connectivity/readme.md)
+
+## Virtual Machines
+[Domain Controllers](/Identity/readme.md)
