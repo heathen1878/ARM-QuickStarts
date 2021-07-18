@@ -14,7 +14,6 @@ The templates used here deploy the following:
 The prerequisites for this template are: 
 
 * [Virtual Network](../Connectivity/readme.md)
-* Subnet
 * Log Analytics Workspace
 
 You can deploy these templates using PowerShell or an Azure DevOps Pipeline. 
@@ -50,13 +49,13 @@ Create a storage account for boot diagnostics, key vault, and network security g
 ```powershell
 $vmPrereqs = New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Prereqs-Basic-Linked-Template-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $resourceGroupOutputs.Outputs.resourceGroupName.value `
--TemplateFile .\VirtualMachineBasicLinkedTemplate.json `
--TemplateParameterFile ..\Identity\VirtualMachineBasicLinkedTemplate.parameters.json `
+-TemplateFile .\VirtualMachinePrereqsBasicLinkedTemplate.json `
+-TemplateParameterFile ..\Identity\VirtualMachinePrereqsBasicLinkedTemplate.parameters.json `
 -_artifactsLocation $artifactsLocation `
 -_artifactsLocationSasToken $artifactsKey
 ```
 
-Create some credentials for the VM deployment. The functions PowerShell script contains two functions; the first function generates a password and the second function uses the generate password and add the secrets to tke key vault.
+Create some credentials for the VM deployment. The functions PowerShell script contains two functions; the first function generates a password and the second function uses the GeneratePassword function and adds the secrets to tke key vault.
 
 ```powershell
 .\functions\functions.ps1
@@ -79,11 +78,22 @@ $adminPassword = Get-AzKeyVaultSecret `
 -Name "builtInAdmin-Password"
 ```
 
+Create one or more virtual machines. The template here can be used to deploy the following customisations:
+
+* Dynamic or Static IP addresses
+* Set the offSet for the IP Address e.g. start addressing from .10 within a subnet where a subnet can use .10 i.e. 192.168.0.0/24.
+* Windows Client or Windows Server OS
+* One or more data disks if required
+* 
+
+
 ```powershell
 New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Marketplace-Image-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $resourceGroupOutputs.Outputs.resourceGroupName.value `
 -TemplateFile .\Virtual-Machine-Marketplace-Image.json `
 -TemplateParameterFile ..\Identity\Virtual-Machine-Marketplace-Image.parameters.json `
-
-
+-subnetId $subnetOutputs.Outputs.subnet_Id.value `
+-subnetAddressPrefix $subnetOutputs.Outputs.subnet_IP_Range.value `
+-adminUsername $adminUsername `
+-adminPassword $adminPassword
 ```
