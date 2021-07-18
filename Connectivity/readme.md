@@ -2,13 +2,13 @@
 
 [Home](../readme.md)
 
-The artifact ConnectivityBasicLinkedTemplate.json and ConnectivityBasicTemplateSpec deploys a network watcher and virtual network. 
+The template ConnectivityBasicLinkedTemplate.json deploys a network watcher and virtual network. 
 
 You can deploy these templates using PowerShell or an Azure DevOps Pipeline; a working Azure DevOps Pipeline can be found [here](https://github.com/heathen1878/Azure/blob/master/Connectivity/readme.md) 
 
 ### PowerShell
 
-First of all you'll need to setup your [deployment](../Deploy/readme.md) artifacts
+First of all you'll need to setup your [deployment](../Deploy/readme.md) store and templates.
 
 Now everything is in place to start a deployment.
 
