@@ -55,6 +55,17 @@ $vmPrereqs = New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Prereqs
 -_artifactsLocationSasToken $artifactsKey
 ```
 
+Assign the NSG to the subnet
+
+```powershell
+$subnetOutputs = New-AzResourceGroupDeployment -Name (-Join("Deploy-Virtual-Network-Subnet-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+-ResourceGroupName $connectivityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
+-TemplateFile .\Virtual-Network-Subnet.json `
+-TemplateParameterFile ..\Identity\Virtual-Network-Subnet.parameters.json
+-NSG_Id $vmPrereqs.Outputs.nsg_id.value
+```
+
+
 Create some credentials for the VM deployment. The functions PowerShell script contains two functions; the first function generates a password and the second function uses the GeneratePassword function and adds the secrets to the key vault. 
 
 **NOTE**
@@ -89,15 +100,63 @@ Create one or more virtual machines. The template here can be used to deploy the
 * Windows Client or Windows Server OS
 * Set the VM suffix offfset
 
+Example: Deploys a domain controller with a data disk.
+
+```json
+"environment": {
+            "value": "Demo"
+        },
+        "vmSuffixOffSet": {
+            "value": 1
+        },
+        "usage": {
+            "value": "ADDS"
+        },
+        ...
+        },
+        "dataDisks": {
+            "value": [
+                {
+                    "DiskType": "Premium_LRS",
+                    "DiskSize": 10
+                }
+            ]
+        }
+```
+
 ```powershell
 New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Marketplace-Image-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $identityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
--TemplateFile .\Virtual-Machine-Marketplace-Image.json `
--TemplateParameterFile ..\Identity\Virtual-Machine-Marketplace-Image.parameters.json `
+-TemplateFile .\Virtual-Machine-Marketplace-Image-Data-Disks.json `
+-TemplateParameterFile ..\Identity\Virtual-Machine-Marketplace-Image-Data-Disks-1.parameters.json `
 -subnetId $subnetOutputs.Outputs.subnet_Id.value `
 -subnetAddressPrefix $subnetOutputs.Outputs.subnet_IP_Range.value `
 -diagnosticsStorageAccountName $vmPrereqs.Outputs.storage_Name.Value `
 -adminUsername $adminUsername `
 -adminPassword $adminPassword.SecretValue
+```
+
+Example: Deploys a second domain controller with a data disk.
+
+```json
+"environment": {
+            "value": "Demo"
+        },
+        "vmSuffixOffSet": {
+            "value": 2
+        },
+        "usage": {
+            "value": "ADDS"
+        },
+        ...
+        },
+        "dataDisks": {
+            "value": [
+                {
+                    "DiskType": "Premium_LRS",
+                    "DiskSize": 10
+                }
+            ]
+        }
 ```
 
