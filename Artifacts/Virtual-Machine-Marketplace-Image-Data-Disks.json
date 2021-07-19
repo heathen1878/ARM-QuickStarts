@@ -378,7 +378,7 @@
                 "count": "[parameters('numberOfInstances')]"
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat('VM-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', copyindex(1)), 'WindowsDefender')]"
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat('VM-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', copyindex(parameters('vmSuffixOffSet'))), 'WindowsDefender')]"
             ],
             "properties": {
                 "publisher": "Microsoft.Azure.Monitoring.DependencyAgent",
@@ -397,7 +397,7 @@
                 "count": "[parameters('numberOfInstances')]"
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat('VM-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', copyindex(1)), 'DependencyAgentWindows')]"
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat('VM-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', copyindex(parameters('vmSuffixOffSet'))), 'DependencyAgentWindows')]"
             ],
             "properties": {
                 "publisher": "Microsoft.EnterpriseCloud.Monitoring",
