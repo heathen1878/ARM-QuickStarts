@@ -240,7 +240,7 @@
                     "vmSize": "[parameters('vmSize')]"
                 },
                 "osProfile": {
-                    "computerName": "[concat(toUpper(parameters('environment')), toUpper(parameters('usage')), copyindex(parameters('vmSuffixOffSet')))]",
+                    "computerName": "[if(greater(length(concat(toUpper(parameters('environment')), toUpper(parameters('usage')), copyindex(parameters('vmSuffixOffSet')))), 15), uniqueString(concat(toUpper(parameters('environment')), toUpper(parameters('usage')), copyindex(parameters('vmSuffixOffSet')))), concat(toUpper(parameters('environment')), toUpper(parameters('usage')), copyindex(parameters('vmSuffixOffSet'))))]",
                     "adminUsername": "[parameters('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "windowsConfiguration": {
@@ -345,7 +345,7 @@
                 "count": "[parameters('numberOfInstances')]"
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat('VM-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', copyindex(1)), 'WindowsDefender')]"
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat('VM-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', copyindex(parameters('vmSuffixOffSet'))), 'WindowsDefender')]"
             ],
             "properties": {
                 "publisher": "Microsoft.Azure.Monitoring.DependencyAgent",
@@ -364,7 +364,7 @@
                 "count": "[parameters('numberOfInstances')]"
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat('VM-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', copyindex(1)), 'DependencyAgentWindows')]"
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat('VM-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', copyindex(parameters('vmSuffixOffSet'))), 'DependencyAgentWindows')]"
             ],
             "properties": {
                 "publisher": "Microsoft.EnterpriseCloud.Monitoring",

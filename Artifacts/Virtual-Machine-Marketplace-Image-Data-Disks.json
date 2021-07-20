@@ -255,7 +255,7 @@
                     "vmSize": "[parameters('vmSize')]"
                 },
                 "osProfile": {
-                    "computerName": "[concat(toUpper(parameters('environment')), toUpper(parameters('usage')), copyindex(parameters('vmSuffixOffSet')))]",
+                    "computerName": "[if(greater(length(concat(toUpper(parameters('environment')), toUpper(parameters('usage')), copyindex(parameters('vmSuffixOffSet')))), 15), uniqueString(concat(toUpper(parameters('environment')), toUpper(parameters('usage')), copyindex(parameters('vmSuffixOffSet')))), concat(toUpper(parameters('environment')), toUpper(parameters('usage')), copyindex(parameters('vmSuffixOffSet'))))]",
                     "adminUsername": "[parameters('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "windowsConfiguration": {
