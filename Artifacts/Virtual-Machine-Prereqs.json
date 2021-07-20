@@ -171,6 +171,9 @@
                     "company": {
                         "value": "[parameters('company')]"
                     },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
                     "enabledForTemplateDeployment": {
                         "value": "[parameters('enabledForTemplateDeployment')]"
                     },
