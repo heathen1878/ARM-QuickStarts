@@ -1,0 +1,62 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "storageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the name of the Azure Storage account."
+            }
+        },        
+        "containerName": {
+            "type": "array",
+            "defaultValue": [
+
+            ]
+        },
+        "accountSasProperties": {
+            "type": "object",
+            "defaultValue": {
+                "signedServices": "b",
+                "signedPermissions": "r",
+                "signedResourceTypes": "co",
+                "signedStart": "[dateTimeAdd(utcNow('u'), '-PT1H')]",
+                "signedExpiry": "[dateTimeAdd(utcNow('u'), 'PT2H')]"
+            },
+            "metadata": {
+                "description": "used to obtain a SAS token for the storage account."
+            }
+
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(parameters('storageAccountName'), '/default/', toLower(parameters('containerName')[copyIndex('Containers')]))]",
+            "copy": {
+                "name": "Containers",
+                "count": "[length(parameters('containerName'))]"
+            },
+            "properties": {
+                "publicAccess": "None"
+            }
+        }
+    ],
+    "outputs": {
+        "container_Id": {
+            "type": "array",
+            "copy": {
+                "count": "[length(parameters('containerName'))]",
+                "input": "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default', toLower(parameters('containerName')[copyIndex()]))]"
+            }
+        },
+        "container_key": {
+            "type": "array",
+            "copy": {
+                "count": "[length(parameters('containerName'))]",
+                "input": "[listAccountSas(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default', toLower(parameters('containerName')[copyIndex()])), '2021-04-01', parameters('accountSasProperties')).accountSasToken]"
+            }
+        }
+    }
+}
