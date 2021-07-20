@@ -2,7 +2,7 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "companyPrefix":{
+        "company":{
             "type": "string",
             "defaultValue": "XXX",
             "metadata": {
@@ -42,7 +42,7 @@
     },
     "variables": {
         "deploymentPrefix": "[concat('st', toLower(parameters('environment')))]",
-        "randomString": "[uniqueString(concat(parameters('companyPrefix'), parameters('suffix'), parameters('location')))]",
+        "randomString": "[uniqueString(concat(parameters('company'), parameters('suffix'), parameters('location')))]",
         "diagnosticStorageAccountName": "[if(greater(length(concat(variables('deploymentPrefix'), variables('randomString'))),23), substring(replace(toLower(concat(variables('deploymentPrefix'), variables('randomString'))), '-', ''),0,23), toLower(concat(variables('deploymentPrefix'), variables('randomString'))))]"
     },
     "resources": [
