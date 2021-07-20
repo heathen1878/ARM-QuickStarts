@@ -1,0 +1,278 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment" :{
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Dev, Test, Prod, Training...etc"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Specifies the location in which the Azure Storage resources should be deployed."
+            }
+        },
+        "Directory_Support":{
+            "type": "string",
+            "defaultValue": "None",
+            "metadata": {
+                "description": "Should AADDS or AD authentication support be enabled for Storage Accounts?"
+            },
+            "allowedValues": [
+                "None",
+                "AADDS",
+                "AD"
+            ]
+        },
+        "domainName": {
+            "type": "string",
+            "defaultValue": "null",
+            "metadata": {
+                "description": "AD Domain FQDN e.g. demo.local"
+            }
+        },
+        "netBiosDomainName": {
+            "type": "string",
+            "defaultValue": "null",
+            "metadata": {
+                "description": "NetBIOS AD Domain name e.g. demo"
+            }
+        },
+        "forestName": {
+            "type": "string",
+            "defaultValue": "null",
+            "metadata": {
+                "description": "Active Directory Forest e.g. demo.local"
+            }
+        },
+        "domainGuid": {
+            "type": "string",
+            "defaultValue": "null",
+            "metadata": {
+                "description": "Domain Guid - this can be found by running (Get-ADDomain).ObjectGUID.guid"
+            }
+        },
+        "domainSid": {
+            "type": "string",
+            "defaultValue": "null",
+            "metadata": {
+                "description": "domain SID - this can be found by running (Get-ADDomain).DomainSID.Value"
+            }
+        },
+        "azureStorageSid":{
+            "type": "string",
+            "defaultValue": "null",
+            "metadata": {
+                "description": "Azure Storage SID - (Get-ADObject -Filter 'Name -eq 'storage account name').ObjectGUID.guid'; this computer account should be precreated"
+            }
+        },
+        "storageSku": {
+            "type": "string",
+            "defaultValue": "Standard_ZRS",
+            "allowedValues":[
+                "Standard_ZRS",
+                "Premium_LRS"
+            ],
+            "metadata": {
+                "description": "Zone redundant replication is the minimum for standard storage replication"
+            }
+        },
+        "storageAccountKind": {
+            "type": "string",
+            "defaultValue": "StorageV2",
+            "allowedValues": [
+                "StorageV2",
+                "FileStorage"
+            ],
+            "metadata": {
+                "description": "The default storage account type for hosting standard file shares; This will be StorageV2 for the foreseeable future."
+            }
+        },
+        "storageAccountUsage":{
+            "type": "string",
+            "defaultValue": "Standard",
+            "metadata":{
+                "description": "used to create a unique id for the storage account name"
+            }
+        },
+        "fileShares": {
+            "type": "array",
+            "defaultValue": [
+                {
+                    "Share": "Name",
+                    "Quota": 1,
+                    "Tier": "Hot"
+                }
+            ],
+            "metadata": {
+                "description": "An array of file shares, with associated quota and storage tier"
+            }
+        },
+        "resourceTags":{
+            "type": "object",
+            "defaultValue": {
+                "usage": "Azure Files"
+            },
+            "metadata":{
+                "description": "Mandatory requirement to denote what the storage account is used for e.g. Compute diagnostics, NSG flow logs etc."
+            }
+        },
+        "privateLinkvNetResourceIds":{
+            "type": "array",
+            "metadata":{
+                "description": "Which vNet will the private link connect to? - at least the vNet where the private link is created should be added"
+            }
+        },
+        "privateLinkSubnetResourceId":{
+            "type": "string",
+            "metadata":{
+                "description": "The resource Id of the subnet where the private link will exist e.g. /subscriptions/subscriptionId/resourceGroups/resourceGroupName/providers/Microsoft.Network/virtualNetworks/vNetName/subnets/subnetName"
+            }
+        }
+    },
+    "variables" : {
+        "deploymentPrefix": "[concat('st', toLower(parameters('Environment')))]",
+        "randomString": "[uniqueString(concat(parameters('storageAccountUsage'), parameters('location')))]",
+        "storageAccountName": "[if(greater(length(concat(variables('deploymentPrefix'), variables('randomString'))),15), substring(replace(toLower(concat(variables('deploymentPrefix'), variables('randomString'))), '-', ''),0,15), toLower(concat(variables('deploymentPrefix'), variables('randomString'))))]",
+        "privateEndpointName": "[concat('PE-', toUpper(variables('storageAccountName')))]",
+        "storageAccount_Id": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "storageDnsName": "privatelink.file.core.windows.net",
+        "privateDNSZone_Id": "[resourceId('Microsoft.Network/privateDnsZones', variables('storageDnsName'))]",
+        "privateEndpoint_Id": "[resourceId('Microsoft.Network/privateEndpoints', variables('privateEndpointName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-04-01",
+            "name": "[variables('storageAccountName')]",
+            "location": "[parameters('location')]",
+            "tags": "[parameters('resourceTags')]",
+            "kind": "[parameters('storageAccountKind')]",
+            "sku": {
+                "name": "[parameters('storageSku')]"
+            },
+            "properties": {
+                "accessTier": "Hot",
+                "azureFilesIdentityBasedAuthentication": {
+                    "directoryServiceOptions": "[parameters('Directory_Support')]",
+                    "activeDirectoryProperties": {
+                        "domainName": "[if(equals(parameters('Directory_Support'), 'AADDS'), parameters('domainName'), json('null'))]",
+                        "netBIOSDomainName": "[if(equals(parameters('Directory_Support'), 'AADDS'), parameters('netBiosDomainName'), json('null'))]",
+                        "forestName": "[if(equals(parameters('Directory_Support'), 'AADDS'), parameters('forestName'), json('null'))]",
+                        "domainGuid": "[if(equals(parameters('Directory_Support'), 'AADDS'), parameters('domainGuid'), json('null'))]",
+                        "domainSid": "[if(equals(parameters('Directory_Support'), 'AADDS'), parameters('domainSid'), json('null'))]",
+                        "azureStorageSid": "[if(equals(parameters('Directory_Support'), 'AADDS'), parameters('azureStorageSid'), json('null'))]"
+                    }
+                },
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false,
+                "largeFileSharesState": "Enabled",
+                "networkAcls":{
+                    "bypass": "AzureServices",
+                    "defaultAction": "Deny"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('storageAccountName'), '/default/',toLower(parameters('fileShares')[copyIndex('fileShares')].Share))]",
+            "copy": {
+                "name": "fileShares",
+                "count": "[length(parameters('fileShares'))]",
+                "mode": "Serial"
+            },
+            "dependsOn": [
+                "[variables('storageAccount_Id')]"
+            ],
+            "properties": {
+                "shareQuota": "[parameters('fileShares')[copyIndex('fileShares')].Quota]",
+                "accessTier": "[parameters('fileShares')[copyIndex('fileShares')].Tier]"
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones",
+            "apiVersion": "2020-06-01",
+            "name": "[variables('storageDnsName')]",
+            "location": "global",
+            "properties": {
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+            "apiVersion": "2020-06-01",
+            "name": "[concat(variables('storageDnsName'), '/link_to_', split(parameters('privateLinkvNetResourceIds')[copyIndex()], '/')[8])]",
+            "copy":{
+                "name": "vNets",
+                "count": "[length(parameters('privateLinkvNetResourceIds'))]",
+                "mode": "serial"
+            },
+            "location": "global",
+            "dependsOn": [
+                "[variables('privateDNSZone_Id')]"
+            ],
+            "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                    "id": "[parameters('privateLinkvNetResourceIds')[copyIndex()]]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateEndpoints",
+            "apiVersion": "2020-05-01",
+            "name": "[variables('privateEndpointName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+               "[variables('storageAccount_Id')]",
+               "[variables('privateDNSZone_Id')]"
+            ],
+            "properties": {
+                "privateLinkServiceConnections": [
+                    {
+                        "name": "[variables('privateEndpointName')]",
+                        "properties": {
+                            "privateLinkServiceId": "[variables('storageAccount_Id')]",
+                            "groupIds": [
+                                "file"
+                            ]
+                        }
+                    }
+                ],
+                "subnet": {
+                    "id": "[parameters('privateLinkSubnetResourceId')]"
+                },
+                "customDnsConfigs": [
+                    {
+                        "fqdn": "[concat(variables('storageAccountName'), '.file.core.windows.net')]"
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+            "apiVersion": "2020-03-01",
+            "name": "[concat(variables('privateEndpointName'), '/PrivateDnsZoneGroup')]",
+            "dependsOn": [
+                "[variables('privateDNSZone_Id')]",
+                "[variables('privateEndpoint_Id')]"
+            ],
+            "properties": {
+                "privateDnsZoneConfigs": [
+                    {
+                        "name": "dnsConfig",
+                        "properties": {
+                            "privateDnsZoneId": "[variables('privateDNSZone_Id')]"
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs":{
+    }
+}
