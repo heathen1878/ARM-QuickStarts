@@ -49,8 +49,8 @@ Create a storage account for boot diagnostics, key vault, and network security g
 ```powershell
 $vmPrereqs = New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Prereqs-Basic-Linked-Template-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $identityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
--TemplateFile .\VirtualMachinePrereqsBasicLinkedTemplate.json `
--TemplateParameterFile ..\Identity\VirtualMachinePrereqsBasicLinkedTemplate.parameters.json `
+-TemplateFile .\Virtual-Machine-Prereqs.json `
+-TemplateParameterFile ..\Identity\Virtual-Machine-Prereqs.parameters.json `
 -_artifactsLocation $artifactsLocation `
 -_artifactsLocationSasToken $artifactsKey
 ```
@@ -61,10 +61,9 @@ Assign the NSG to the subnet
 $subnetOutputs = New-AzResourceGroupDeployment -Name (-Join("Deploy-Virtual-Network-Subnet-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $connectivityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
 -TemplateFile .\Virtual-Network-Subnet.json `
--TemplateParameterFile ..\Identity\Virtual-Network-Subnet.parameters.json
--NSG_Id $vmPrereqs.Outputs.nsg_id.value
+-TemplateParameterFile ..\Identity\Virtual-Network-Subnet.parameters.json `
+-NSG_Id $vmPrereqs.Outputs.nsg_Id.value
 ```
-
 
 Create some credentials for the VM deployment. The functions PowerShell script contains two functions; the first function generates a password and the second function uses the GeneratePassword function and adds the secrets to the key vault. 
 
