@@ -85,3 +85,77 @@ stages:
               outputStorageUri: artifactsLocation
               outputStorageContainerSasToken: artifactsLocationSasToken
               sasTokenTimeOutInMinutes: 30
+
+              - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Create Resource Group for connectivity resources
+            inputs:
+              deploymentScope: Subscription
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Resource-Group.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\Management\Resource-Group.parameters.json
+              overrideParameters:
+                -environment ${{ upper(parameters.environment) }}
+                -location ${{ parameters.location }}
+              deploymentMode: Incremental
+              deploymentOutputs: 'ManagementRG'
+
+          - task: AzurePowerShell@4
+            displayName: Get the resource group name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: |
+                $var=ConvertFrom-Json '$(ManagementRG)'
+                $value=$var.resourceGroup_Name.value
+                Write-Host "##vso[task.setvariable variable=managementRG_Name;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Deploy Management resources
+            inputs:
+              deploymentScope: 'Resource Group'
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              action: Create Or Update Resource Group
+              resourceGroupName: $(ManagementRG)
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\ManagementLinkedTemplate.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\Management\ManagementLinkedTemplate.parameters.json
+              overrideParameters:
+                -environment ${{ parameters.environment }}
+                -_artifactsLocation $(artifactsLocation)
+                -_artifactsLocationSasToken $(artifactsLocationSasToken)
+              deploymentMode: Incremental
+              deploymentOutputs: 'ManagementOutput'
+
+          - task: AzurePowerShell@4
+            displayName: Get automation account name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: 'InlineScript'
+              Inline: |
+                $var=ConvertFrom-Json '$(ManagementOutput)'
+                $value=$var.automationAccount_Name.value
+                Write-Host "##vso[task.setvariable variable=automationAccount_Name;]$value"
+                $value=$var.keyVault_Name.value
+                Write-Host "##vso[task.setvariable variable=keyVault_Name;]$value"
+                $value=$var.logAnalyticsWorkspace_Id.value
+                Write-Host "##vso[task.setvariable variable=logAnalyticsWorkspace_Id;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzurePowerShell@4
+            displayName: Create Automation Account RunAs Account
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: FilePath
+              scriptPath: $(System.DefaultWorkingDirectory)\Artifacts\Azure-Automation-RunAs.ps1
+              scriptArguments:
+                -resourceGroupName $(ManagementRG) `
+                -automationAccount $(automationAccount_Name)  `
+                -keyVaultName $(keyVault_Name)
+              azurePowerShellVersion: 'latestVersion'
+              pwsh: true
