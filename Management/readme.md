@@ -2,15 +2,32 @@
 
 [Home](../readme.md)
 
-Deploys management resources within a resource group; this could be within its own Azure Subscription or in within a shared Azure subscription.
+The template ManagementBasicLinkedTemplate.json deploys a log analytics workspace, key vault and Azure automatiom account.
 
-The resources you can expect to see are:
+You can deploy these templates using PowerShell or an Azure DevOps Pipeline; a working Azure DevOps Pipeline can be found [here]() 
 
-* Resource Group
-  * RBAC
-  * Tags
-  * Azure Policy
-* Log Analytics Workspace
-* Automation Account
+### PowerShell
 
-For the linked templates to work, the linked template need to be publicly accessible e.g. in a storage account; these templates can be secured using a storage account key a.k.a Shared Access Signature.
+First of all you'll need to setup your [deployment](../Deploy/readme.md) store and templates.
+
+Now everything is in place to start a deployment.
+
+Create a resource group
+
+```powershell
+$managementResourceGroupOutputs = New-AzDeployment `
+-Name (-Join("Deploy-Resource-Group-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute))`
+-Location "UK South" `
+-TemplateFile .\Resource-Group.json -TemplateParameterFile ..\Management\Resource-Group.parameters.json
+```
+
+Run the deployment
+
+```powershell
+New-AzResourceGroupDeployment `
+-Name (-Join("Deploy-Management-Basic-Linked-Template-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+-ResourceGroupName $managementResourceGroupOutputs.Outputs.resourceGroup_Name.value `
+-TemplateFile .\ManagementLinkedTemplate.json -TemplateParameterFile ..\Management\ManagementLinkedTemplate.parameters.json `
+-_artifactsLocation $artifactsLocation `
+-_artifactsLocationSasToken $artifactsKey
+```
