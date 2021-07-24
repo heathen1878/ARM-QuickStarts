@@ -144,11 +144,11 @@
         }
     ],
     "outputs": {
-        "logAnalyticsResourceId":{
+        "logAnalyticsResource_Id":{
             "type": "string",
             "value": "[variables('logAnalyticsWorkspace_Id')]"
         },
-        "logAnalyticsWorkspaceName": {
+        "logAnalyticsWorkspace_Name": {
             "type": "string",
             "value": "[variables('logAnalyticsWorkspaceName')]"
         }
