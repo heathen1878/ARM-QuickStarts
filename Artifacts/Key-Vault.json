@@ -163,11 +163,11 @@
         }
     ],
     "outputs": {
-        "keyVaultId":{
+        "keyVault_Id":{
             "type": "string",
             "value": "[variables('keyVault_Id')]"
         },
-        "keyVaultName":{
+        "keyVault_Name":{
             "type": "string",
             "value": "[variables('Name')]"
         }
