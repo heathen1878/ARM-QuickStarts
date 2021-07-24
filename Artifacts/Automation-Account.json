@@ -30,17 +30,17 @@
                 "description": "The name property can be either Free or Basic"
             }
         },
-        "logAnalyticsWorkspace_Id":{
+        "logAnalyticsWorkspace_Name":{
             "type": "string",
+            "defaultValue": "workspaceName",
             "metadata": {
-                "description": "The workspace resource Id, key vault will use for diagnostic logging"
+                "description": "The workspace resource name, key vault will use for diagnostic logging"
             }
         }
     },
     "variables":{
         "automationAccountName": "[concat('AA-',toUpper(parameters('environment')),'-',toUpper(parameters('service')), '-', toUpper(parameters('location')))]",
-        "automationAccount_Id": "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
-        "logAnalyticsWorkspaceName": "[split(toUpper(parameters('logAnalyticsWorkspace_Id')), '/')[8]]"
+        "automationAccount_Id": "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
     },
     "resources": [
         {
@@ -57,7 +57,7 @@
         {
             "type": "Microsoft.OperationalInsights/workspaces/linkedServices",
             "apiVersion": "2020-08-01",
-            "name": "[concat(variables('logAnalyticsWorkspaceName'), '/' , 'Automation')]",
+            "name": "[concat(parameters('logAnalyticsWorkspace_Name'), '/Automation')]",
             "location": "[parameters('location')]",
             "dependsOn": [
                 "[variables('automationAccount_Id')]"
@@ -72,7 +72,7 @@
             "type": "string",
             "value": "[variables('automationAccount_Id')]"
         },
-        "automationAccountName":{
+        "automationAccount_Name":{
             "type": "string",
             "value": "[variables('automationAccountName')]"
         }
