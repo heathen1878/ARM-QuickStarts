@@ -1,0 +1,178 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "company":{
+            "type": "string",
+            "defaultValue": "XXX",
+            "metadata": {
+                "description": "Used for creating random strings where unique names are required."
+            }
+        },
+        "environment": {
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "logAnalyticsService": {
+            "type": "string",
+            "defaultValue": "Shared",
+            "metadata": {
+                "description": "The service denotes what the Log Analytics are used for, it maybe all logs or a subset of logs for example Automation logs."
+            }
+        },
+        "kvUsage": {
+            "type": "string",
+            "metadata": {
+                "description": "Application or service e.g. APP1 or ARM"
+            },
+            "defaultValue": ""
+        },
+        "keyVaultAdminGroup":{
+            "type": "string",
+            "metadata": {
+                "description": "the object Id of the Key Vault Admin Group."
+            }
+        },
+        "service": {
+            "type": "string",
+            "defaultValue": "Shared",
+            "metadata": {
+                "description": "The service associated for Azure Automation"
+            }
+        },
+        "_artifactsLocation": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The base URI where artifacts required by this template are located."
+            }
+        },
+        "_artifactsLocationSasToken": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+            }
+        }
+    },
+    "variables": {
+        "linkedTemplates":{
+            "logAnalyticsWorkspace": "[concat(parameters('_artifactsLocation'), 'Log-Analytics.json', parameters('_artifactsLocationSasToken'))]",
+            "keyVault": "[concat(parameters('_artifactsLocation'), 'Key-Vault.json', parameters('_artifactsLocationSasToken'))]",
+            "automationAccount": "[concat(parameters('_artifactsLocation'), 'Automation-Account.json', parameters('_artifactsLocationSasToken'))]"            
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "deployLogAnalytics",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').logAnalyticsWorkspace]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "company": {
+                        "value": "[parameters('company')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "logAnalyticsService": {
+                        "value": "[parameters('logAnalyticsService')]"
+                    },
+                    "deployVMInsights": {
+                        "value": "Yes"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "deployKeyVault",
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/deployments', 'deployLogAnalytics')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').keyVault]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "company": {
+                        "value": "[parameters('company')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "kvUsage": {
+                        "value": "[parameters('kvUsage')]"
+                    },
+                    "keyVaultAdminGroup": {
+                        "value": "[parameters('keyVaultAdminGroup')]"
+                    },
+                    "logAnalyticsWorkspace_Id": {
+                        "value": "[reference('deployLogAnalytics').outputs.logAnalyticsResource_Id.value]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "deployAutomation",
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/deployments', 'deployLogAnalytics')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('linkedTemplates').automationAccount]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "logAnalyticsWorkspace_Name": {
+                        "value": "[reference('deployLogAnalytics').outputs.logAnalyticsWorkspace_Name.value]"
+                    },
+                    "service": {
+                        "value": "[parameters('service')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+         "logAnalyticsWorkspace_Id":{
+            "type": "string",
+            "value": "[reference('deployLogAnalytics').outputs.logAnalyticsResourceId.value]"
+        },
+        "keyVault_Name":{
+            "type": "string",
+            "value": "[reference('deployKeyVault').outputs.keyVaultName.value]"
+        },
+         "automationAccount_Name": {
+            "type": "string",
+            "value": "[reference('deployAutomation').outputs.automationAccountName.value]"
+        }
+    }
+}
