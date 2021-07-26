@@ -18,7 +18,7 @@
         Creation Date:  26/10/2020
 
     .EXAMPLE
-        .\Automation-RunAs-Account.ps1 `
+        .\Automation-Account-RunAs.ps1 `
             -ResourceGroupName "Resource Group Where Key Vault and Automation exist" `
             -AutomationAccount "Automation Account Name" `
             -KeyVaultName "Key Vault Name"
