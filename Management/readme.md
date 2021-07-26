@@ -24,10 +24,19 @@ $managementResourceGroupOutputs = New-AzDeployment `
 Run the deployment
 
 ```powershell
-New-AzResourceGroupDeployment `
+$managementOutputs = New-AzResourceGroupDeployment `
 -Name (-Join("Deploy-Management-Basic-Linked-Template-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $managementResourceGroupOutputs.Outputs.resourceGroup_Name.value `
 -TemplateFile .\ManagementLinkedTemplate.json -TemplateParameterFile ..\Management\ManagementLinkedTemplate.parameters.json `
 -_artifactsLocation $artifactsLocation `
 -_artifactsLocationSasToken $artifactsKey
+```
+
+Configure the Azure Automation Account
+
+```powershell
+.\Automation-Account-RunAs.ps1 `
+-ResourceGroupName $managementResourceGroupOutputs.Outputs.resourceGroup_Name.Value `
+-AutomationAccount $managementOutputs.Outputs.automationAccount_Name.Value `
+-KeyVaultName $managementOutputs.Outputs.keyVault_Name.Value
 ```
