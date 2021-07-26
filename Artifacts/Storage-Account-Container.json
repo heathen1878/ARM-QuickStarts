@@ -4,6 +4,7 @@
     "parameters": {
         "storageAccountName": {
             "type": "string",
+            "defaultValue": "",
             "metadata": {
                 "description": "Specifies the name of the Azure Storage account."
             }
@@ -26,7 +27,6 @@
             "metadata": {
                 "description": "used to obtain a SAS token for the storage account."
             }
-
         }
     },
     "resources": [
@@ -51,12 +51,9 @@
                 "input": "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default', toLower(parameters('containerName')[copyIndex()]))]"
             }
         },
-        "container_key": {
-            "type": "array",
-            "copy": {
-                "count": "[length(parameters('containerName'))]",
-                "input": "[listAccountSas(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default', toLower(parameters('containerName')[copyIndex()])), '2021-04-01', parameters('accountSasProperties')).accountSasToken]"
-            }
+        "sasToken": {
+            "type": "securestring",
+            "value": "[listAccountSas(parameters('storageAccountName'), '2021-04-01', parameters('accountSasProperties')).accountSasToken]"
         }
     }
 }
