@@ -164,15 +164,15 @@
     "outputs": {
          "logAnalyticsWorkspace_Id":{
             "type": "string",
-            "value": "[reference('deployLogAnalytics').outputs.logAnalyticsResourceId.value]"
+            "value": "[reference('deployLogAnalytics').outputs.logAnalyticsResource_Id.value]"
         },
         "keyVault_Name":{
             "type": "string",
-            "value": "[reference('deployKeyVault').outputs.keyVaultName.value]"
+            "value": "[reference('deployKeyVault').outputs.keyVault_Name.value]"
         },
          "automationAccount_Name": {
             "type": "string",
-            "value": "[reference('deployAutomation').outputs.automationAccountName.value]"
+            "value": "[reference('deployAutomation').outputs.automationAccount_Name.value]"
         }
     }
 }
