@@ -10,8 +10,11 @@
 ## Linked Templates
 [To deploy linked templates review this first](/Deploy/readme.md)
 
-## Connectivity
+## Management Platform Resources
+[Management](/Management/readme.md) 
+
+## Connectivity Platform Resources
 [Basic Connectivity](/Connectivity/readme.md)
 
-## Virtual Machines
+## Identity Landing Zone 
 [Domain Controllers](/Identity/readme.md)
