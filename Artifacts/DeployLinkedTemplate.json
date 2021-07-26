@@ -1,0 +1,141 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+         "company":{
+            "type": "string",
+            "defaultValue": "XXX",
+            "metadata": {
+                "description": "Used for creating random strings where unique names are required."
+            }
+        },
+        "environment" :{
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "suffix":{
+            "type": "string",
+            "defaultValue": "storage",
+            "metadata":{
+                "description": "used to generate a random string"
+            }
+        },
+        "resourceTags":{
+            "type": "object",
+            "defaultValue": {
+                "usage": "storage"
+            },
+            "metadata":{
+                "description": "Mandatory requirement to denote what the storage account is used for e.g. Compute diagnostics, NSG flow logs etc."
+            }
+        },   
+        "containerName": {
+            "type": "array",
+            "defaultValue": [
+                "Container1",
+                "Container2"
+            ]
+        },
+        "_artifactsLocation": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The base URI where artifacts required by this template are located."
+            }
+        },
+        "_artifactsLocationSasToken": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+            }
+        }
+    },
+    "variables": {
+        "linkedTemplates":{
+            "storageAccount": "[concat(parameters('_artifactsLocation'), 'Storage-Account.json', parameters('_artifactsLocationSasToken'))]",
+            "container": "[concat(parameters('_artifactsLocation'), 'Storage-Account-Container.json', parameters('_artifactsLocationSasToken'))]"
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "deployStorageAccount",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').storageAccount]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "company": {
+                        "value": "[parameters('company')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "suffix": {
+                        "value": "[parameters('suffix')]"
+                    },
+                    "resourceTags": {
+                        "value": "[parameters('resourceTags')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "deployContainer",
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/deployments', 'deployStorageAccount')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('linkedTemplates').container]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "storageAccountName": {
+                        "value": "[reference('deployStorageAccount').outputs.storageAccount_Name.value]"
+                    },
+                    "containerName": {
+                        "value": "[parameters('containerName')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "storageAccountEndpoint": {
+            "type": "string",
+            "value": "[concat('https://', trim(reference('deployStorageAccount').outputs.storageAccount_Name.value), '.blob.core.windows.net')]"
+        },
+        "containers": {
+            "type": "array",
+            "copy": {
+                "count": "[length(parameters('containerName'))]",
+                "input": "[parameters('containerName')[copyIndex()]]"
+            }
+        },
+        "sasToken": {
+            "type": "securestring",
+            "value": "[reference('deployContainer').outputs.sasToken.value]"
+        }
+    }
+}
