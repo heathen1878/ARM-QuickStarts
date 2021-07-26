@@ -43,12 +43,12 @@
     "variables": {
         "deploymentPrefix": "[concat('st', toLower(parameters('environment')))]",
         "randomString": "[uniqueString(concat(parameters('company'), parameters('suffix'), parameters('location')))]",
-        "diagnosticStorageAccountName": "[if(greater(length(concat(variables('deploymentPrefix'), variables('randomString'))),23), substring(replace(toLower(concat(variables('deploymentPrefix'), variables('randomString'))), '-', ''),0,23), toLower(concat(variables('deploymentPrefix'), variables('randomString'))))]"
+        "StorageAccountName": "[if(greater(length(concat(variables('deploymentPrefix'), variables('randomString'))),23), substring(replace(toLower(concat(variables('deploymentPrefix'), variables('randomString'))), '-', ''),0,23), toLower(concat(variables('deploymentPrefix'), variables('randomString'))))]"
     },
     "resources": [
         {
             "type": "Microsoft.Storage/storageAccounts",
-            "name": "[variables('diagnosticStorageAccountName')]",
+            "name": "[variables('StorageAccountName')]",
             "apiVersion": "2019-04-01",
             "location": "[parameters('location')]",
             "tags": "[parameters('resourceTags')]",
@@ -63,13 +63,13 @@
         }
     ],
     "outputs": {
-        "storageAccountName":{
+        "storageAccount_Name":{
             "type": "string",
-            "value": "[variables('diagnosticStorageAccountName')]"
+            "value": "[variables('StorageAccountName')]"
         },
-        "storageAccountId":{
+        "storageAccount_Id":{
             "type":"string",
-            "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('diagnosticStorageAccountName'))]"
+            "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
         }
     }
 }
