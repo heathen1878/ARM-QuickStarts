@@ -23,22 +23,6 @@
                 "description": "Used for creating random strings where unique names are required."
             }
         },
-        "suffix": {
-            "type": "string",
-            "defaultValue": "storage",
-            "metadata":{
-                "description": "used to generate a random string"
-            }
-        },
-        "resourceTags": {
-            "type": "object",
-            "defaultValue": {
-                "usage": "storage"
-            },
-            "metadata":{
-                "description": "Mandatory requirement to denote what the storage account is used for e.g. Compute diagnostics, NSG flow logs etc."
-            }
-        },
         "subnetName": {
             "type": "string",
             "metadata":{
@@ -99,7 +83,7 @@
     },
     "variables": {
         "linkedTemplates":{
-            "diagStorage": "[concat(parameters('_artifactsLocation'), 'Storage-Account.json', parameters('_artifactsLocationSasToken'))]",
+            "Storage": "[concat(parameters('_artifactsLocation'), 'Storage-Account.json', parameters('_artifactsLocationSasToken'))]",
             "nsg": "[concat(parameters('_artifactsLocation'), 'Network-Security-Group.json', parameters('_artifactsLocationSasToken'))]",
             "keyVault": "[concat(parameters('_artifactsLocation'), 'Key-Vault.json', parameters('_artifactsLocationSasToken'))]"
         }
@@ -112,7 +96,7 @@
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
-                    "uri":"[variables('linkedTemplates').diagStorage]",
+                    "uri":"[variables('linkedTemplates').Storage]",
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters":{
@@ -126,10 +110,43 @@
                         "value": "[parameters('location')]"
                     },
                     "suffix": {
-                        "value": "[parameters('suffix')]"
+                        "value": "ComputeBootDiags"
                     },
                     "resourceTags": {
-                        "value": "[parameters('resourceTags')]"
+                        "value": {
+                            "usage": "Compute Boot Diags"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createNsgFlowLogStorage",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').Storage]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "company": {
+                        "value": "[parameters('company')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "suffix": {
+                        "value": "NsgFlowLogs"
+                    },
+                    "resourceTags": {
+                        "value": {
+                            "usage": "NSG Flow Logs"
+                        }
                     }
                 }
             }
@@ -195,17 +212,21 @@
             "type": "string",
             "value": "[reference('createNetworkSecurityGroup').outputs.nsg_Id.value]"
         },
-        "storage_Name": {
+        "ComputeStorage_Name": {
             "type": "string",
-            "value": "[reference('createDiagnosticStorage').outputs.storageAccountName.value]"
+            "value": "[reference('createDiagnosticStorage').outputs.storageAccount_Name.value]"
+        },
+        "nsgStorage_Name": {
+            "type": "string",
+            "value": "[reference('createNsgFlowLogStorage').outputs.storageAccount_Name.value]"
         },
         "keyVault_Name": {
             "type": "string",
-            "value": "[reference('createKeyVault').outputs.keyVaultName.value]"
+            "value": "[reference('createKeyVault').outputs.keyVault_Name.value]"
         },
         "keyVault_Id": {
             "type": "string",
-            "value": "[reference('createKeyVault').outputs.keyVaultId.value]"
+            "value": "[reference('createKeyVault').outputs.keyVault_Id.value]"
         }
     }
 }
