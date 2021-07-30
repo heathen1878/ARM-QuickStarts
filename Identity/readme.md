@@ -9,12 +9,16 @@ The templates used here deploy the following:
 * Key vault
 * Network Security Group with default ruleset
 * Creates secrets as specified
-* One or more virtual machines 
+* One or more virtual machines
+* Recovery Services Vault 
+
+[Basic deployment](#basic) 
+[Advanced deployment](#advanced)
 
 The prerequisites for this template are: 
 
 * [Virtual Network](../Connectivity/readme.md)
-* Log Analytics Workspace
+* [Log Analytics Workspace](../Management/readme.md)
 
 You can deploy these templates using PowerShell or an Azure DevOps Pipeline. 
 
@@ -38,7 +42,8 @@ As above you'll need a [virtual network](../Connectivity/readme.md)
 Create a subnet
 
 ```powershell
-$subnetOutputs = New-AzResourceGroupDeployment -Name (-Join("Deploy-Virtual-Network-Subnet-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+$subnetOutputs = New-AzResourceGroupDeployment `
+-Name (-Join("Deploy-Virtual-Network-Subnet-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $connectivityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
 -TemplateFile .\Virtual-Network-Subnet.json `
 -TemplateParameterFile ..\Identity\Virtual-Network-Subnet.parameters.json
@@ -47,7 +52,8 @@ $subnetOutputs = New-AzResourceGroupDeployment -Name (-Join("Deploy-Virtual-Netw
 Create a storage account for boot diagnostics, key vault, and network security group.
 
 ```powershell
-$vmPrereqs = New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Prereqs-Basic-Linked-Template-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+$vmPrereqs = New-AzResourceGroupDeployment `
+-Name (-Join("Virtual-Machine-Prereqs-Basic-Linked-Template-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $identityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
 -TemplateFile .\Virtual-Machine-Prereqs.json `
 -TemplateParameterFile ..\Identity\Virtual-Machine-Prereqs.parameters.json `
@@ -58,18 +64,29 @@ $vmPrereqs = New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Prereqs
 Assign the NSG to the subnet
 
 ```powershell
-$subnetOutputs = New-AzResourceGroupDeployment -Name (-Join("Deploy-Virtual-Network-Subnet-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+$subnetOutputs = New-AzResourceGroupDeployment `
+-Name (-Join("Deploy-Virtual-Network-Subnet-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $connectivityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
 -TemplateFile .\Virtual-Network-Subnet.json `
 -TemplateParameterFile ..\Identity\Virtual-Network-Subnet.parameters.json `
 -NSG_Id $vmPrereqs.Outputs.nsg_Id.value
 ```
 
+Deploy NSG Flow logging
+
+```powershell
+$nsgOutputs = New-AzResourceGroupDeployment `
+-Name (-Join("Deploy-Virtual-Network-Monitoring-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+-ResourceGroupName $connectivityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
+-TemplateFile .\Virtual-Network-Monitoring.json `
+-TemplateParameterFile ..\Identity\Virtual-Network-Monitoring.parameters.json `
+```
+
 Create some credentials for the VM deployment. The functions PowerShell script contains two functions; the first function generates a password and the second function uses the GeneratePassword function and adds the secrets to the key vault. 
 
 **NOTE**
 
-If your user is not assigned the Key Vault Administrator role - implicity or explicity - then you'll need to make sure it is...and if this is in the form of a group membership change, you'll need to logout and log back in. 
+If your user is not assigned the Key Vault Administrator role - implicity or explicity - then you'll need to make sure it is prior to running the code below.
 
 ```powershell
 . .\functions.ps1
@@ -92,12 +109,14 @@ $adminPassword = Get-AzKeyVaultSecret `
 -Name "builtInAdmin-Password"
 ```
 
+### <a name="basic"></a>Basic 
+
 Create one or more virtual machines. The template here can be used to deploy the following customisations:
 
 * Dynamic or Static IP addresses
 * Set the offSet for the IP Address e.g. start addressing from .10 within a subnet where a subnet can use .10 i.e. 192.168.0.0/24.
 * Windows Client or Windows Server OS
-* Set the VM suffix offfset
+* Set the VM suffix offset
 
 Example: Deploys a domain controller with a data disk.
 
@@ -159,3 +178,35 @@ Example: Deploys a second domain controller with a data disk.
         }
 ```
 
+###  <a name="advanced"></a>Advanced
+
+This code will configure Active Directory Domain Services within the VM using Automation Account DSC.
+
+
+Deploy a recovery services vault 
+
+```powershell
+$rsvOutput = New-AzResourceGroupDeployment -Name (-Join("Recovery-Services-Vault-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+-ResourceGroupName $identityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
+-TemplateFile .\Recovery-Services-Vault.json `
+-TemplateParameterFile ..\Identity\Recovery-Services-Vault.parameters.json
+```
+
+For not prod environments disable soft delete
+
+```powershell
+#Requires -Modules @{ModuleName="Az.RecoveryServices"}
+If ($identityResourceGroupOutputs.Parameters.environment.Value -ne "Prod"){
+    Set-AzRecoveryServicesVaultProperty -VaultId $rsvOutput.Outputs.recoveryServicesVault_Id.value -SoftDeleteFeatureState Disable
+}
+```
+
+Deploy Recovery Services Vault monitoring
+
+```powershell
+New-AzResourceGroupDeployment `
+-Name (-Join("Recovery-Services-Vault-Monitoring-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
+-ResourceGroupName $managementResourceGroupOutputs.Outputs.resourceGroup_Name.value `
+-TemplateFile .\Recovery-Services-Vault-Monitoring.json `
+-TemplateParameterFile ..\Identity\Recovery-Services-Vault-Monitoring.parameters.json
+```
