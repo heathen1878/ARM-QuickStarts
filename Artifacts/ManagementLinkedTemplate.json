@@ -30,6 +30,17 @@
                 "description": "The service denotes what the Log Analytics are used for, it maybe all logs or a subset of logs for example Automation logs."
             }
         },
+        "enableSoftDelete": {
+            "type": "bool",
+            "allowedValues": [
+                true,
+                false
+            ],
+            "defaultValue": true,
+            "metadata": {
+                "description": "Used to set soft delete functionality for the key vault - false is useful for test scenarios"
+            }
+        },
         "kvUsage": {
             "type": "string",
             "metadata": {
@@ -124,6 +135,9 @@
                     },
                     "kvUsage": {
                         "value": "[parameters('kvUsage')]"
+                    },
+                    "enableSoftDelete": {
+                        "value": "[parameters('enableSoftDelete')]"
                     },
                     "keyVaultAdminGroup": {
                         "value": "[parameters('keyVaultAdminGroup')]"
