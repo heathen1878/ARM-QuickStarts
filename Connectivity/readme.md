@@ -25,7 +25,7 @@ Run the deployment
 
 ```powershell
 New-AzResourceGroupDeployment -Name (-Join("Deploy-Conncectivity-Basic-Linked-Template-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) ` 
--ResourceGroupName $connectivityResourceGroupOutputs.Outputs.resourceGroup_Name `
+-ResourceGroupName $connectivityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
 -TemplateFile .\ConnectivityBasicLinkedTemplate.json -TemplateParameterFile ..\Connectivity\ConnectivityBasicLinkedTemplate.parameters.json `
 -_artifactsLocation $artifactsLocation `
 -_artifactsLocationSasToken $artifactsKey
