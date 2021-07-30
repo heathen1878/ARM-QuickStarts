@@ -1,0 +1,120 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment": {
+            "type": "string",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            },
+            "defaultValue": "Demo"
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "The location of the resource; inherits the resource group configuration."
+            }
+        },
+        "usage": {
+            "type": "string",
+            "metadata": {
+                "description": "Application or service e.g. application or infrastructure specific"
+            },
+            "defaultValue": ""
+        },
+        "logAnalyticsWorkspace_Id":{
+            "type": "string",
+            "metadata": {
+                "description": "The workspace, key vault will use for diagnostic logging"
+            }
+        }
+    },
+    "variables":{
+        "vaultName": "[concat('RSV-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', toUpper(parameters('location')))]",
+        "vault_Id": "[resourceId('Microsoft.RecoveryServices/vaults/', variables('vaultName'))]",
+        "backupRGPrefix": "[concat('RG-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-RSV')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.RecoveryServices/vaults",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('vaultName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "RS0",
+                "tier": "Standard"
+            },
+            "identity":{
+                "type": "systemAssigned"
+            },
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.RecoveryServices/vaults/backupPolicies",
+            "apiVersion": "2021-03-01",
+            "name": "[concat(variables('vaultName'), '/', parameters('usage'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.RecoveryServices/vaults', variables('vaultName'))]"
+            ],
+            "properties": {
+                "backupManagementType": "AzureIaasVM",
+                "instantRPDetails": {
+                    "azureBackupRGNamePrefix": "[variables('backupRGPrefix')]"
+                },
+                "schedulePolicy": {
+                    "schedulePolicyType": "SimpleSchedulePolicy",
+                    "scheduleRunFrequency": "Daily",
+                    "scheduleRunTimes": [
+                        "2021-07-30T00:00:00Z"
+                    ],
+                    "scheduleWeeklyFrequency": 0
+                },
+                "retentionPolicy": {
+                    "retentionPolicyType": "LongTermRetentionPolicy",
+                    "dailySchedule": {
+                        "retentionTimes": [
+                            "2021-07-30T00:00:00Z"
+                        ],
+                        "retentionDuration": {
+                            "count": 180,
+                            "durationType": "Days"
+                        }
+                    }
+                },
+                "instantRpRetentionRangeInDays": 2,
+                "timeZone": "UTC",
+                "protectedItemsCount": 0
+            }
+        },
+        {
+            "type": "Microsoft.RecoveryServices/vaults/providers/diagnosticSettings",
+            "apiVersion": "2017-05-01-preview",
+            "name": "[concat(variables('vaultName'), '/microsoft.insights/SendToLogAnalytics')]",
+            "location":"[resourceGroup().location]",
+            "dependsOn": [
+                "[variables('vault_Id')]"
+            ],
+            "properties": {
+                "workspaceId": "[parameters('logAnalyticsWorkspace_Id')]",
+                "logs": [
+                    {
+                        "category": "AzureBackupReport",
+                        "enabled": true,
+                        "retentionPolicy": {
+                            "days": 0,
+                            "enabled": false
+                        }
+                    }
+                ],
+                "metrics": []
+            }
+        }
+    ],
+    "outputs":{
+        "recoveryServicesVault_Id":{
+            "type": "string",
+            "value": "[variables('vault_Id')]"
+        }
+    }
+}
