@@ -1,0 +1,83 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "NSG_Id":{
+            "type": "string",
+            "defaultValue": "/sub/subid/rg/rgname/providers/provider/resourcetype/resource",
+            "metadata": {
+                "description": "Default NSG resource Id"
+            }
+        },
+        "NSG_Name":{
+            "type": "string",
+            "defaultValue": "NSGName",
+            "metadata": {
+                "description": "Default NSG resource Name"
+            }
+        },
+        "logAnalyticsWorkspace_Id": {
+            "type": "string",
+            "defaultValue": "/sub/subid/rg/rgname/providers/provider/resourcetype/resource",
+            "metadata": {
+                "description": "Log Analytics workspace id, generally passed from the pipeline"
+            }
+        },
+        "nsgStorageAccount_Id": {
+            "type": "string",
+            "defaultValue": "/sub/subid/rg/rgname/providers/provider/resourcetype/resource",
+            "metadata": {
+                "description": "resource Id of the diagnostics storage account"
+            }
+        },
+        "networkWatcher_Name": {
+            "type": "string",
+            "defaultValue": "networkwatcherName",
+            "metadata": {
+                "description": "resource name of the network watcher"
+            }
+        }
+    },
+    "variables":{
+    },
+    "resources":[
+        {
+            "apiVersion": "2020-05-01",
+            "type": "Microsoft.Network/networkWatchers/flowLogs",
+            "name": "[concat(parameters('networkWatcher_Name'), '/APPI-', parameters('NSG_Name'))]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+            ],
+            "properties": {
+                "targetResourceId": "[parameters('NSG_Id')]",
+                "storageId": "[parameters('nsgStorageAccount_Id')]",
+                "enabled": true,
+                "flowAnalyticsConfiguration": {
+                    "networkWatcherFlowAnalyticsConfiguration": {
+                        "enabled": true,
+                        "workspaceResourceId": "[parameters('logAnalyticsWorkspace_Id')]",
+                        "trafficAnalyticsInterval": 10
+                    }
+                },
+                "retentionPolicy": {
+                    "days": 7,
+                    "enabled": true
+                },
+                "format": {
+                    "type": "JSON",
+                    "version": 2
+                }
+            }
+        }
+    ],
+    "outputs":{
+
+    }
+}
