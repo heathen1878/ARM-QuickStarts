@@ -41,6 +41,17 @@
             },
             "defaultValue": "Standard"
         },
+        "enableSoftDelete": {
+            "type": "bool",
+            "allowedValues": [
+                true,
+                false
+            ],
+            "defaultValue": true,
+            "metadata": {
+                "description": "Used to set soft delete functionality for the key vault - false is useful for test scenarios"
+            }
+        },
         "enabledForDeployment": {
             "type": "bool",
             "metadata":{
@@ -108,8 +119,8 @@
                 "enabledForTemplateDeployment": "[parameters('enabledForTemplateDeployment')]",
                 "enabledForDiskEncryption": "[parameters('enabledForDiskEncryption')]",
                 "enableRbacAuthorization": true,
-                "enableSoftDelete": true,
-                "enablePurgeProtection": true,
+                "enableSoftDelete": "[parameters('enableSoftDelete')]",
+                "enablePurgeProtection": "[if(parameters('enableSoftDelete'), bool('true'), json('null'))]",
                 "softDeleteRetentionInDays": 7,
                 "tenantId": "[subscription().tenantId]",
                 "sku": {
