@@ -27,8 +27,8 @@ Then using PowerShell you can generate a SAS Token and deploy the template
 ```powershell
 $context = `
 (Get-AzStorageAccount `
--ResourceGroupName $storageAccountOutputs.Outputs.storageAccountId.value.split('/')[4] `
--StorageAccountName $storageAccountOutputs.Outputs.storageAccountId.value.split('/')[8]).Context
+-ResourceGroupName $storageAccountOutputs.Outputs.storageAccount_Id.value.split('/')[4] `
+-StorageAccountName $storageAccountOutputs.Outputs.storageAccount_Id.value.split('/')[8]).Context
 
 # This generate a SAS token which is valid for 1 hour but starts 1 hour prior to the current time.
 $sasToken = New-AzStorageAccountSASToken `
