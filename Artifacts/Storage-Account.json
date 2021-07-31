@@ -30,6 +30,37 @@
                 "description": "used to generate a random string"
             }
         },
+        "deployContainer": {
+            "type": "string",
+            "defaultValue": "No",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
+            "metadata": {
+                "description": "Determine whether a container or containers should be deployed"
+            }
+        },
+        "containerName": {
+            "type": "array",
+            "defaultValue": [
+                "Container1",
+                "Container2"
+            ]
+        },
+        "accountSasProperties": {
+            "type": "object",
+            "defaultValue": {
+                "signedServices": "b",
+                "signedPermission": "r",
+                "signedResourceTypes": "co",
+                "signedStart": "[dateTimeAdd(utcNow('u'), '-PT1H')]",
+                "signedExpiry": "[dateTimeAdd(utcNow('u'), 'PT2H')]"
+            },
+            "metadata": {
+                "description": "used to obtain a SAS token for the storage account."
+            }
+        },
         "resourceTags":{
             "type": "object",
             "defaultValue": {
@@ -43,7 +74,7 @@
     "variables": {
         "deploymentPrefix": "[concat('st', toLower(parameters('environment')))]",
         "randomString": "[uniqueString(concat(parameters('company'), parameters('suffix'), parameters('location')))]",
-        "StorageAccountName": "[if(greater(length(concat(variables('deploymentPrefix'), variables('randomString'))),23), substring(replace(toLower(concat(variables('deploymentPrefix'), variables('randomString'))), '-', ''),0,23), toLower(concat(variables('deploymentPrefix'), variables('randomString'))))]"
+        "StorageAccountName": "[if(greater(length(concat(variables('deploymentPrefix'), variables('randomString'))),23), substring(replace(toLower(concat(variables('deploymentPrefix'), variables('randomString'))), '-', ''),0,23), toLower(concat(variables('deploymentPrefix'), variables('randomString'))))]" 
     },
     "resources": [
         {
@@ -60,6 +91,19 @@
                 "accessTier": "Hot",
                 "allowBlobPublicAccess": false
             }
+        },
+        {
+            "condition": "[equals(parameters('deployContainer'), 'Yes')]",
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('storageAccountName'), '/default/', toLower(parameters('containerName')[copyIndex('Containers')]))]",
+            "copy": {
+                "name": "Containers",
+                "count": "[length(parameters('containerName'))]"
+            },
+            "properties": {
+                "publicAccess": "None"
+            }
         }
     ],
     "outputs": {
@@ -70,6 +114,17 @@
         "storageAccount_Id":{
             "type":"string",
             "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+        },
+        "artifactLocation": {
+            "type": "array",
+            "copy": {
+                "count": "[length(parameters('containerName'))]",
+                "input": "[concat('https://', variables('storageAccountName'), '.blob.core.windows.net/', toLower(parameters('containerName')[copyIndex()]))]"
+            }
+        },
+        "sasToken": {
+            "type": "string",
+            "value": "[listAccountSas(variables('storageAccountName'), '2021-04-01', parameters('accountSasProperties')).accountSasToken]"
         }
     }
 }
