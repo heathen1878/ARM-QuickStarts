@@ -97,6 +97,9 @@
             "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
             "apiVersion": "2019-06-01",
             "name": "[concat(variables('storageAccountName'), '/default/', toLower(parameters('containerName')[copyIndex('Containers')]))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+            ],
             "copy": {
                 "name": "Containers",
                 "count": "[length(parameters('containerName'))]"
