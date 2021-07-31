@@ -212,6 +212,14 @@
             "type": "string",
             "value": "[reference('createNetworkSecurityGroup').outputs.nsg_Id.value]"
         },
+        "ComputeStorage_Id": {
+            "type": "string",
+            "value": "[reference('createDiagnosticStorage').outputs.storageAccount_Id.value]"
+        },
+        "nsgStorage_Id": {
+            "type": "string",
+            "value": "[reference('createNsgFlowLogStorage').outputs.storageAccount_Id.value]"
+        },
         "ComputeStorage_Name": {
             "type": "string",
             "value": "[reference('createDiagnosticStorage').outputs.storageAccount_Name.value]"
