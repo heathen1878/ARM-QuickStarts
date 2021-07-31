@@ -100,7 +100,7 @@
     },
     "variables": {
         "randomString": "[uniqueString(concat(parameters('company'), parameters('kvUsage'), parameters('location')))]",
-        "Name": "[concat('KV-', toUpper(parameters('environment')), '-', toUpper(variables('randomString')))]",
+        "Name": "[if(greater(length(concat('KV-', toUpper(parameters('environment')), '-', toUpper(variables('randomString')))),24), substring(concat('KV-', toUpper(parameters('environment')), '-', toUpper(variables('randomString'))), 0, 24), concat('KV-', toUpper(parameters('environment')), '-', toUpper(variables('randomString'))))]",
         "resourceTags": {
             "usage": "[parameters('kvUsage')]"
         },
