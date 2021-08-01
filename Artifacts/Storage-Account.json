@@ -119,6 +119,7 @@
             "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
         },
         "artifactLocation": {
+            "condition": "[equals(parameters('deployContainer'), 'Yes')]",
             "type": "array",
             "copy": {
                 "count": "[length(parameters('containerName'))]",
