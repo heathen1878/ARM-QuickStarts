@@ -79,7 +79,7 @@ $nsgOutputs = New-AzResourceGroupDeployment `
 -Name (-Join("Deploy-Virtual-Network-Monitoring-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $connectivityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
 -TemplateFile .\Virtual-Network-Monitoring.json `
--TemplateParameterFile ..\Identity\Virtual-Network-Monitoring.parameters.json `
+-TemplateParameterFile ..\Identity\Virtual-Network-Monitoring.parameters.json
 ```
 
 Create some credentials for the VM deployment. The functions PowerShell script contains two functions; the first function generates a password and the second function uses the GeneratePassword function and adds the secrets to the key vault. 
