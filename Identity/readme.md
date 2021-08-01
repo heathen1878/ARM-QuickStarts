@@ -192,12 +192,17 @@ $rsvOutput = New-AzResourceGroupDeployment -Name (-Join("Recovery-Services-Vault
 -TemplateParameterFile ..\Identity\Recovery-Services-Vault.parameters.json
 ```
 
-For not prod environments disable soft delete
+For not prod environments disable soft delete and set the backup storage redundancy to LRS.
 
 ```powershell
 #Requires -Modules @{ModuleName="Az.RecoveryServices"}
 If ($identityResourceGroupOutputs.Parameters.environment.Value -ne "Prod"){
     Set-AzRecoveryServicesVaultProperty -VaultId $rsvOutput.Outputs.recoveryServicesVault_Id.value -SoftDeleteFeatureState Disable
+}
+
+If ($identityResourceGroupOutputs.Parameters.environment.Value -ne "Prod"){
+    $vault = Get-AzRecoveryServicesVault -Name $rsvOutput.Outputs.recoveryServicesVault_Id.Value.split('/')[8]
+    Set-AzRecoveryServicesBackupProperty -Vault $vault -BackupStorageRedundancy LocallyRedundant
 }
 ```
 
