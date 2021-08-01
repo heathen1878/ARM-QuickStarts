@@ -146,10 +146,10 @@ Example: Deploys a domain controller with a data disk.
 New-AzResourceGroupDeployment -Name (-Join("Virtual-Machine-Marketplace-Image-",(Get-Date).Day,"-",(Get-Date).Month,"-",(Get-Date).Year,"-",(Get-Date).Hour,(Get-Date).Minute)) `
 -ResourceGroupName $identityResourceGroupOutputs.Outputs.resourceGroup_Name.value `
 -TemplateFile .\Virtual-Machine-Marketplace-Image-Data-Disks.json `
--TemplateParameterFile ..\Identity\Virtual-Machine-Marketplace-Image-Data-Disks-1.parameters.json `
+-TemplateParameterFile ..\Identity\Virtual-Machine-Marketplace-Image-Data-Disk-1.parameters.json `
 -subnetId $subnetOutputs.Outputs.subnet_Id.value `
 -subnetAddressPrefix $subnetOutputs.Outputs.subnet_IP_Range.value `
--diagnosticsStorageAccountName $vmPrereqs.Outputs.storage_Name.Value `
+-diagnosticsStorageAccountName $vmPrereqs.Outputs.computeStorage_Name.Value `
 -adminUsername $adminUsername `
 -adminPassword $adminPassword.SecretValue
 ```
