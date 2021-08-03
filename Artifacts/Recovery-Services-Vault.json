@@ -2,6 +2,13 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
+        "company":{
+            "type": "string",
+            "metadata": {
+                "description": "Company name - this is optional and usually defined for enterprise deployments"
+            },
+            "defaultValue": ""
+        },
         "environment": {
             "type": "string",
             "metadata": {
@@ -33,7 +40,7 @@
     "variables":{
         "vaultName": "[concat('RSV-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-', toUpper(parameters('location')))]",
         "vault_Id": "[resourceId('Microsoft.RecoveryServices/vaults/', variables('vaultName'))]",
-        "backupRGPrefix": "[concat('RG-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-RSV')]"
+        "backupRGPrefix": "[concat('RG-', toUpper(parameters('Company')), '-', toUpper(parameters('environment')), '-', toUpper(parameters('usage')), '-RSV')]"
     },
     "resources": [
         {
