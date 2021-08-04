@@ -55,7 +55,7 @@ stages:
               csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Storage-Account.json
               overrideParameters:
                 -environment ${{ parameters.environment }}
-                -companyPrefix ${{ parameters.company }}
+                -company ${{ parameters.company }}
                 -suffix "ARMTemplates"
                 -resourceTags {"usage":"ARM Templates"}
               deploymentMode: Incremental
@@ -159,3 +159,23 @@ stages:
                 -keyVaultName $(keyVault_Name)
               azurePowerShellVersion: 'latestVersion'
               pwsh: true
+          
+          - task: AzurePowerShell@4
+            displayName: Get outputs
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              ScriptType: InlineScript
+              Inline: |
+                New-Item -Path $(Pipeline.Workspace) -Name Variables -ItemType Directory
+
+                $managementOutputs = @{}
+                Get-ChildItem env:MANAGEMENTOUTPUT_* | ForEach-Object {$managementOutputs.Add($_.Name,$_.Value.Replace("""",""))}
+                $managementOutputs.GetEnumerator() | Select-Object Name, Value | Export-Csv -Path $env:PIPELINE_WORKSPACE\Variables\${{ parameters.environment }}-network.csv -IncludeTypeInformation:$false
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+          
+          - task: PublishPipelineArtifact@1
+            displayName: Publish Variables
+            inputs:
+              targetPath: $(Pipeline.Workspace)\Variables
+              artifactName: ${{ parameters.environment }}-Variables

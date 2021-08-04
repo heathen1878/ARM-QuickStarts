@@ -55,7 +55,7 @@ stages:
               csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Storage-Account.json
               overrideParameters:
                 -environment ${{ parameters.environment }}
-                -companyPrefix ${{ parameters.company }}
+                -company ${{ parameters.company }}
                 -suffix "ARMTemplates"
                 -resourceTags {"usage":"ARM Templates"}
               deploymentMode: Incremental
@@ -112,7 +112,6 @@ stages:
                 Write-Host "##vso[task.setvariable variable=connectivityRG_Name;]$value"
               azurePowerShellVersion: latestVersion
               pwsh: true
-
           
           - task: AzureResourceManagerTemplateDeployment@3
             displayName: Deploy connectivty resources
@@ -131,3 +130,23 @@ stages:
                 -_artifactsLocationSasToken $(artifactsLocationSasToken)
               deploymentMode: Incremental
               deploymentOutputs: 'connectivityOutput'
+
+          - task: AzurePowerShell@4
+            displayName: Get outputs
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              ScriptType: InlineScript
+              Inline: |
+                New-Item -Path $(Pipeline.Workspace) -Name Variables -ItemType Directory
+
+                $connectivityOutputs = @{}
+                Get-ChildItem env:CONNECTIVITYOUTPUT_* | ForEach-Object {$connectivityOutputs.Add($_.Name,$_.Value.Replace("""",""))}
+                $connectivityOutputs.GetEnumerator() | Select-Object Name, Value | Export-Csv -Path $env:PIPELINE_WORKSPACE\Variables\${{ parameters.environment }}-network.csv -IncludeTypeInformation:$false
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+          
+          - task: PublishPipelineArtifact@1
+            displayName: Publish Variables
+            inputs:
+              targetPath: $(Pipeline.Workspace)\Variables
+              artifactName: ${{ parameters.environment }}-Variables
