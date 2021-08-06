@@ -68,7 +68,7 @@ stages:
               scriptType: InlineScript
               Inline: |
                 $var=ConvertFrom-Json '$(storageOutput)'
-                $value=$var.storageAccountName.value
+                $value=$var.storageAccount_Name.value
                 Write-Host "##vso[task.setvariable variable=storageAccountName;]$value"
               azurePowerShellVersion: latestVersion
               pwsh: true
