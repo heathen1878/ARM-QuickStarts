@@ -9,15 +9,16 @@
                 "description": "Location for all resources."
             }
         },
-        "vNet_Id":{
+        "vNetName":{
             "type": "string",
-            "defaultValue": "",
+            "defaultValue": "vNetName",
             "metadata":{
-                "description": "The resource Id of the vNet where the gateway subnet will reside."
+                "description": "The resource Name of the vNet where the gateway subnet will reside."
             }
         },
         "subnetAddressPrefix":{
             "type": "string",
+            "defaultValue": "10.10.0.0/24",
             "metadata": {
                 "description": "The subnet address prefix must reside within the vNet you are deploying the subnet to."
             }
@@ -43,12 +44,9 @@
             }
         }
     },
-    "variables":{
-        "vNetName": "[split(parameters('vNet_Id'), '/')[8]]"
-    },
     "resources": [
         {
-            "name": "[concat(variables('vNetName'), '/', parameters('subnetName'))]",
+            "name": "[concat(parameters('vNetName'), '/', parameters('subnetName'))]",
             "type": "Microsoft.Network/virtualNetworks/subnets",
             "apiVersion": "2019-09-01",
             "location": "[parameters('location')]",
@@ -63,11 +61,11 @@
     "outputs":{
         "subnet_Id":{
             "type": "string",
-            "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), parameters('subnetName'))]"
+            "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNetName'), parameters('subnetName'))]"
         },
         "subnet_IP_Range":{
             "type": "string",
-            "value": "[reference(resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), parameters('subnetName')), '2019-09-01').addressPrefix]"
+            "value": "[reference(resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNetName'), parameters('subnetName')), '2019-09-01').addressPrefix]"
         }
     }
 }
