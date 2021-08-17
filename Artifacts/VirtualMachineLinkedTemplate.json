@@ -1,0 +1,252 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "environment": {
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "company": {
+            "type": "string",
+            "defaultValue": "XXX",
+            "metadata": {
+                "description": "Used for creating random strings where unique names are required."
+            }
+        },
+        "networkWatcher": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "If the virtual machine is being deployed into an subscription with an existing network watcher resource, provide the resource Id here."
+            }
+        },
+         "vNetPrefix": {
+            "type": "string",
+            "defaultValue": "10.10.0.0/24",
+            "metadata": {
+                "description": "Address prefix for vNet"
+            }
+        },
+        "resourceGroupSuffix": {
+            "type": "string",
+            "defaultValue": "RGName",
+            "metadata": {
+                "description": "used to label the vNet association"
+            }
+        },
+        "subnetName":{
+            "type": "string",
+            "metadata":{
+                "description": "The friendly name of the subnet e.g. Inrastructure"
+            }
+        },
+        "usage": {
+            "type": "string",
+            "defaultValue": "General",
+            "metadata": {
+                "description": "Workload"
+            }
+        },
+        "numberOfInstances": {
+            "type": "int",
+            "defaultValue": 2,
+            "metadata": {
+                "description": "Number of virtual machines to deploy"
+            }
+        },
+        "adminUsername": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "passed from the pipeline using Key Vault values"
+            }
+        },
+        "adminPassword": {
+            "type": "secureString",
+            "defaultValue": "",
+            "metadata": {
+                "description": "passed from the pipeline using Key Vault values"
+            }
+        },
+        "_artifactsLocation": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The base URI where artifacts required by this template are located."
+            }
+        },
+        "_artifactsLocationSasToken": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+            }
+        }
+    },
+    "variables": {
+        "linkedTemplates":{
+            "networkWatcher": "[concat(parameters('_artifactsLocation'), 'Network-Watcher.json', parameters('_artifactsLocationSasToken'))]",
+            "virtualNetwork": "[concat(parameters('_artifactsLocation'), 'Virtual-Network.json', parameters('_artifactsLocationSasToken'))]",
+            "subnet": "[concat(parameters('_artifactsLocation'), 'Virtual-Network-Subnet.json', parameters('_artifactsLocationSasToken'))]",
+            "Storage": "[concat(parameters('_artifactsLocation'), 'Storage-Account.json', parameters('_artifactsLocationSasToken'))]",
+            "virtualMachine": "[concat(parameters('_artifactsLocation'), 'Virtual-Machine-Marketplace-Image-Basic.json', parameters('_artifactsLocationSasToken'))]"
+        }
+    },
+    "resources": [
+        {
+            "condition": "[equals(parameters('networkWatcher'), null())]",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createNetworkWatcher",
+            "properties": {
+                "mode": "incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').networkWatcher]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "location": {
+                        "value": "[parameters('location')]"
+                    }
+                }
+            }
+        },
+        {
+             "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createVirtualNetwork",
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/deployments', 'createNetworkWatcher')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').virtualNetwork]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                     "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "vNetPrefix": {
+                        "value": "[parameters('vNetPrefix')]"
+                    },
+                    "resourceGroupSuffix": {
+                        "value": "[parameters('resourceGroupSuffix')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createSubnet",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/deployments', 'createVirtualNetwork')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').subnet]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vNetName": {
+                        "value": "[reference('createVirtualNetwork').outputs.vNet_Name.value]"
+                    },
+                    "subnetName": {
+                        "value": "[parameters('subnetName')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createDiagnosticStorage",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').Storage]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "company": {
+                        "value": "[parameters('company')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "suffix": {
+                        "value": "ComputeBootDiags"
+                    },
+                    "resourceTags": {
+                        "value": {
+                            "usage": "Compute Boot Diags"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createVirtualMachine",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri":"[variables('linkedTemplates').virtualMachine]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "usage": {
+                        "value": "[parameters('usage')]"
+                    },
+                    "numberOfInstances": {
+                        "value": "[parameters('numberOfInstances')]"
+                    },
+                    "subnetId": {
+                        "value": "[reference('createSubnet').outputs.subnet_Id.value]"
+                    },
+                    "subnetAddressPrefix": {
+                        "value": "[reference('createSubnet').outputs.subnet_IP_Range.value]"
+                    },
+                    "diagnosticsStorageAccountName": {
+                        "value": "[reference('createDiagnosticStorage').outputs.storageAccount_Name.value]"
+                    },
+                    "adminUsername": {
+                        "value": "[parameters('adminUsername')]"
+                    },
+                    "adminPassword": {
+                        "value": "[parameters('adminPassword')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "virtualMachine_Name": {
+            "type": "string",
+            "value": "[reference('createVirtualMachine').outputs.virtualMachine_Name.value]"
+        }
+    }
+}
