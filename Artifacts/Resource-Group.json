@@ -29,6 +29,15 @@
                 "description": "The location of the resource group"
             }
         },
+        "Locations": {
+            "type": "array",
+            "defaultValue": [
+                ""
+            ],
+            "metadata": {
+                "description": "list of valid locations"
+            }
+        },
         "resourceTags": {
             "type": "object",
             "defaultValue": {
@@ -59,7 +68,7 @@
     "variables": {
         "resourceGroupPrefix": "[if(empty(parameters('Company')), concat('RG-', toUpper(parameters('environment'))), concat('RG-', toUpper(parameters('Company')), '-', toUpper(parameters('environment'))))]",
         "resourceGroupName": "[concat(variables('resourceGroupPrefix'), '-', toUpper(parameters('usage')), '-', replace(toUpper(parameters('location')), ' ', ''))]",
-        "AllowedLocations": "[createArray(parameters('location'))]",
+        "AllowedLocations": "[if(empty(parameters('Locations')), createArray(parameters('location')), parameters('Locations'))]",
         "rgLocationPolicyId": "/providers/Microsoft.Authorization/policyDefinitions/e765b5de-1225-4ba3-bd56-1ac6695af988",
         "resLocationPolicyId": "/providers/Microsoft.Authorization/policyDefinitions/e56962a6-4747-49cd-b67b-bf8b01975c4c"
     },
@@ -80,7 +89,7 @@
                 "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
             ],
             "properties":{
-                "displayName": "[concat('Allowed Locations for Resource Groups: ', parameters('location'))]",
+                "displayName": "[concat('Allowed Locations for Resource Groups: ', replace(replace(replace(string(variables('AllowedLocations')), '[\"', ''), '\"]', ''), '\",\"' , '-'))]",
                 "policyDefinitionId": "[variables('rgLocationPolicyId')]",
                 "parameters":{
                 "listOfAllowedLocations": {
@@ -139,7 +148,7 @@
                             "apiVersion": "2019-09-01",
                             "name": "[guid(variables('resLocationPolicyId'), parameters('Location'))]",
                             "properties":{
-                                "displayName": "[concat('Allowed Locations for Azure Resources: ', parameters('location'))]",
+                                "displayName": "[concat('Allowed Locations for Azure Resources: ', replace(replace(replace(string(variables('AllowedLocations')), '[\"', ''), '\"]', ''), '\",\"' , '-'))]",
                                 "policyDefinitionId": "[variables('resLocationPolicyId')]",
                                 "parameters":{
                                     "listOfAllowedLocations": {
@@ -166,6 +175,10 @@
             "condition": "[equals(parameters('DedicatedSubscription'), 'Yes')]",
             "type": "string",
             "value": "[resourceId('Microsoft.Authorization/policyAssignments', guid(variables('rgLocationPolicyId'), parameters('Location')))]"
+        },
+        "locations": {
+            "type": "string",
+            "value": "[replace(string(variables('AllowedLocations')), '[', '')]"
         }
     }
 }
