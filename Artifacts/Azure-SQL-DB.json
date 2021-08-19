@@ -1,0 +1,210 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+         "company":{
+            "type": "string",
+            "defaultValue": "XXX",
+            "metadata": {
+                "description": "Used for creating random strings where unique names are required."
+            }
+        },
+        "environment": {
+           "type": "string",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            },
+            "defaultValue": "Demo"
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "The location of the resource; inherits the resource group configuration."
+            }
+        },
+        "usage": {
+            "type": "string",
+            "metadata": {
+                "description": "Application or service e.g. APP1 or ARM"
+            },
+            "defaultValue": ""
+        },
+        "administratorLogin": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "desciption": "The admin username for the database, if left blank it is auto-generated"
+            }
+        },
+        "administratorLoginPassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "desciption": "Passed into the template using either a key vault reference, pipeline var or variable at runtime."
+            }
+        },
+        "collation": {
+            "type": "string",
+            "defaultValue": "SQL_Latin1_General_CP1_CI_AS",
+            "metadata": {
+                "desciption": "The collation of the database being deployed"
+            }
+        },
+        "tier": {
+            "type": "string",
+            "defaultValue": "Standard",
+            "allowedValues": [
+                "Standard",
+                "GeneralPurpose"
+            ],
+            "metadata": {
+                "desciption": "The tier of the database"
+            }
+        },
+        "skuName": {
+            "type": "string",
+            "defaultValue": "S0",
+            "allowedValues": [
+                "S0",
+                "GP_Gen5_2"
+            ],
+            "metadata": {
+                "desciption": "The Sku of the database"
+            }
+        },
+        "maxSizeBytes": {
+            "type": "int",
+            "defaultValue": 268435456000,
+            "allowedValues": [
+                2147483648,
+                268435456000,
+                1099511627776
+            ],
+            "metadata": {
+                "desciption": "The maximum size depends on the SKU; Basic Skus support up to 2GB, Standard Skus up to 250GB and Premium Skus up to 1024GB."
+            }
+        },
+        "zoneRedundant": {
+            "type": "bool",
+            "allowedValues" : [ 
+                true,
+                false
+            ],
+            "defaultValue": false,
+            "metadata" : { 
+                "desciption": "Should the database be redundant - requires Premium"
+            }
+        },
+        "sampleName": {
+            "type": "string",
+            "defaultValue": "AdventureWorksLT",
+            "metadata": {
+                "description": "The name of he sample database to be deployed. If left blank no database is deployed."
+            }
+        },
+        "licenseType": {
+            "type": "string",
+            "allowedValues": [
+                "BasePrice",
+                "LicenseIncluded"
+            ],
+            "defaultValue": "LicenseIncluded",
+            "metadata": {
+                "desciption": "BasePrice infers you have Azure Hybrid Benefit, whereas LicenseIncluded is the default."
+            }
+        },
+        "requestedBackupStorageRedundancy": {
+            "type": "string",
+            "allowedValues": [
+                "Geo",
+                "Local",
+                "Zone"
+            ],
+            "defaultValue": "Geo",
+            "metadata": {
+                "desciption": "The storage account type to be used to store backups for this database."
+            }
+        },
+        "allowAzureIps": {
+            "type": "bool",
+            "allowedValues": [
+                true,
+                false
+            ],
+            "defaultValue": true,
+            "metadata": {
+                "desciption": "Determines whethers all Azure IPs are allowed to communicate with the database."
+            }
+        }
+    },
+    "variables": {
+        "randomString": "[uniqueString(concat(parameters('company'), parameters('usage'), parameters('location')))]",
+        "serverName": "[concat('sql-', tolower(parameters('company')), '-', toLower(parameters('environment')), '-', toLower(variables('randomString')), '-', toLower(parameters('location')))]",
+        "administratorLogin": "[if(empty(parameters('administratorLogin')), concat(variables('serverName'), '-dbAdmin')  , parameters('administratorLogin'))]",
+        "resourceTags": {
+            "usage": "[parameters('usage')]"
+        },
+        "databaseName": "[concat('SQLDB-', toUpper(parameters('company')), '-', toUpper(parameters('environment')), '-', toUpper(variables('randomString')), '-', toUpper(parameters('location')))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "2019-06-01-preview",
+            "name": "[variables('serverName')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "administratorLogin": "[variables('administratorLogin')]",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+                "version": "12.0"
+            },
+            "tags": "[variables('resourceTags')]"
+        },
+        {
+            "condition": "[parameters('allowAzureIPs')]",
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2021-02-01-preview",
+            "name": "[concat(variables('serverName'), '/AllowAllWindowsAzureIps')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', variables('serverName'))]"
+            ],
+            "properties": {
+                "endIpAddress": "0.0.0.0",
+                "startIpAddress": "0.0.0.0"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases",
+            "apiVersion": "2021-02-01-preview",
+            "name": "[concat(variables('serverName'), '/', variables('databaseName'))]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', variables('serverName'))]"
+            ],
+            "tags": "[variables('resourceTags')]",
+            "properties": {
+                "collation": "[parameters('collation')]",
+                "maxSizeBytes": "[parameters('maxSizeBytes')]",
+                "sampleName": "[if(empty(parameters('sampleName')), json('null'), parameters('sampleName'))]",
+                "zoneRedundant": "[parameters('zoneRedundant')]",
+                "licenseType": "[parameters('licenseType')]",
+                "requestedBackupStorageRedundancy": "[parameters('requestedBackupStorageRedundancy')]"
+            },
+            "sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('tier')]"
+            }
+        }
+    ],
+    "outputs": {
+        "server_Name": {
+            "type": "string",
+            "value": "[variables('serverName')]"
+        },
+        "database_Name": {
+            "type": "string",
+            "value": "[variables('databaseName')]"
+        }        
+    }
+}
