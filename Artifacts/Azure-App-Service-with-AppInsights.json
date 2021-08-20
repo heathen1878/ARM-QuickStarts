@@ -60,16 +60,27 @@
                 "description": "Describes plan's instance count"
             }
         },
+        "deployDatabaseConnection": {
+            "type": "string",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
+            "defaultValue": "No",
+            "metadata": {
+                "desciption": "Should a connecton string be created? - requires the sqlServer_Name, sqlServerDatabase_Name and administratorLoginPassword be populated."
+            }
+        },
         "sqlServer_Name": {
             "type": "string",
-            "defaultValue": "serverName",
+            "defaultValue": "",
             "metadata": {
                 "desciption": "The resource name of the Azure SQL server this web app will use"
             }
         },
         "sqlServerDatabase_Name": {
             "type": "string",
-            "defaultValue": "databaseName",
+            "defaultValue": "",
             "metadata": {
                 "desciption": "The resource name of the Azure SQL database this web app will use"
             }
@@ -135,15 +146,16 @@
                             "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')),'2020-02-02').InstrumentationKey]"
                         },
                         {
+                            "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                            "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')),'2020-02-02').ConnectionString]"
+                        },
+                        {
+                            "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+                            "value": "~2"
+                        },
+                        {
                             "name": "APPINSIGHTS_JAVASCRIPT_ENABLED",
                             "value": "true"
-                        }
-                    ],
-                    "connectionStrings": [
-                        {
-                            "name": "default",
-                            "connectionString": "[concat('Data Source=tcp:', reference(resourceId('Microsoft.Sql/servers', parameters('sqlServer_Name')), '2019-06-01-preview').fullyQualifiedDomainName, ',1433;Initial Catalog=', parameters('sqlServerDatabase_Name'), ';Persist Security Info=False;User ID=', reference(resourceId('Microsoft.Sql/servers', parameters('sqlServer_Name')), '2019-06-01-preview').administratorLogin, ';Password=', parameters('administratorLoginPassword'), ';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;')]",
-                            "type": "SQLAzure"
                         }
                     ]
                 }
@@ -152,16 +164,25 @@
                 "[resourceId('Microsoft.Web/serverfarms', variables('serverFarm'))]",
                 "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
             ]
+        },
+        {
+            "condition": "[equals(parameters('deployDatabaseConnection'), 'Yes')]",
+            "type": "Microsoft.Web/sites/config",
+            "apiVersion": "2020-12-01",
+            "name": "[concat(variables('webSiteName'), '/connectionStrings')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('websiteName'))]",
+                "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+            ],
+            "properties": {
+                "default": {
+                    "value": "[if(equals(parameters('deployDatabaseConnection'), 'Yes'), concat('Data Source=tcp:', reference(resourceId('Microsoft.Sql/servers', parameters('sqlServer_Name')), '2019-06-01-preview').fullyQualifiedDomainName, ',1433;Initial Catalog=', parameters('sqlServerDatabase_Name'), ';Persist Security Info=False;User ID=', reference(resourceId('Microsoft.Sql/servers', parameters('sqlServer_Name')), '2019-06-01-preview').administratorLogin, ';Password=', parameters('administratorLoginPassword'), ';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'), json('null') )]",
+                    "type": "SQLAzure"
+                }
+            }
         }
     ],
     "outputs": {
-        "key": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')),'2020-02-02').InstrumentationKey]"
-        },
-        "connectionString": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')),'2020-02-02').ConnectionString]"
-        }
+        
     }
 }
