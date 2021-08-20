@@ -86,7 +86,7 @@ stages:
               outputStorageContainerSasToken: artifactsLocationSasToken
               sasTokenTimeOutInMinutes: 30
 
-              - task: AzureResourceManagerTemplateDeployment@3
+          - task: AzureResourceManagerTemplateDeployment@3
             displayName: Create Resource Group for connectivity resources
             inputs:
               deploymentScope: Subscription
@@ -119,7 +119,7 @@ stages:
               deploymentScope: 'Resource Group'
               azureResourceManagerConnection: ${{ parameters.serviceConn }}
               action: Create Or Update Resource Group
-              resourceGroupName: $(ManagementRG)
+              resourceGroupName: $(ManagementRG_Name)
               location: ${{ parameters.location }}
               templateLocation: Linked artifact
               csmFile: $(System.DefaultWorkingDirectory)\Artifacts\ManagementLinkedTemplate.json
@@ -152,9 +152,9 @@ stages:
             inputs:
               azureSubscription: ${{ parameters.serviceConn }}
               scriptType: FilePath
-              scriptPath: $(System.DefaultWorkingDirectory)\Artifacts\Azure-Automation-RunAs.ps1
+              scriptPath: $(System.DefaultWorkingDirectory)\Artifacts\Automation-Account-RunAs.ps1
               scriptArguments:
-                -resourceGroupName $(ManagementRG) `
+                -resourceGroupName $(ManagementRG_Name) `
                 -automationAccount $(automationAccount_Name)  `
                 -keyVaultName $(keyVault_Name)
               azurePowerShellVersion: 'latestVersion'
@@ -170,7 +170,7 @@ stages:
 
                 $managementOutputs = @{}
                 Get-ChildItem env:MANAGEMENTOUTPUT_* | ForEach-Object {$managementOutputs.Add($_.Name,$_.Value.Replace("""",""))}
-                $managementOutputs.GetEnumerator() | Select-Object Name, Value | Export-Csv -Path $env:PIPELINE_WORKSPACE\Variables\${{ parameters.environment }}-network.csv -IncludeTypeInformation:$false
+                $managementOutputs.GetEnumerator() | Select-Object Name, Value | Export-Csv -Path $env:PIPELINE_WORKSPACE\Variables\${{ parameters.environment }}-management.csv -IncludeTypeInformation:$false
               azurePowerShellVersion: latestVersion
               pwsh: true
           
