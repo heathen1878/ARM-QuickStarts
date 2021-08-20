@@ -4,7 +4,9 @@
 
 The template ManagementBasicLinkedTemplate.json deploys a log analytics workspace, key vault and Azure automatiom account.
 
-You can deploy these templates using PowerShell or an Azure DevOps Pipeline; a working Azure DevOps Pipeline can be found [here]() 
+You can deploy these templates using PowerShell or an Azure DevOps Pipeline; a working Azure DevOps Pipeline can be found [here](Pipeline/management.yml)
+
+[![Build Status](https://dev.azure.com/heathen1878/MSDN/_apis/build/status/Management?branchName=master)](https://dev.azure.com/heathen1878/MSDN/_build/latest?definitionId=2&branchName=master)
 
 ### PowerShell
 
