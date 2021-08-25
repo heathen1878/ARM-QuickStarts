@@ -1,0 +1,81 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "connectActivityLog":{
+            "type": "string",
+            "defaultValue": "No",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
+            "metadata": {
+                "description": "Determines whether the Azure Activity log is connnected to the log analytics workspace"
+            }
+        },
+        "activityLogSettingsName": {
+            "type": "string",
+            "defaultValue": "SendToLogAnalytics",
+            "metadata": {
+                "description": "The name of the diagnostic setting"
+            }
+        },
+        "logAnalyticsWorkspaceName":{
+            "type": "string",
+            "metadata": {
+                "description": "The name of the log analytics workspace to connect to."
+            }
+        }
+    },
+    "variables":{
+    },
+    "resources": [
+        {
+            "condition": "[equals(parameters('connectActivityLog'), 'Yes')]",
+            "type": "Microsoft.Insights/diagnosticSettings",
+            "apiVersion": "2017-05-01-preview",
+            "name": "[parameters('activityLogSettingsName')]",
+            "dependsOn": [],
+            "properties": {
+                "workspaceId": "[parameters('logAnalyticsWorkspaceName')]",
+                "logs": [
+                    {
+                        "category": "Administrative",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Alert",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Autoscale",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Policy",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Recommendation",
+                        "enabled": true
+                    },
+                    {
+                        "category": "ResourceHealth",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Security",
+                        "enabled": true
+                    },
+                    {
+                        "category": "ServiceHealth",
+                        "enabled": true
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs":{
+
+    }
+}
