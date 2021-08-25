@@ -1,0 +1,4 @@
+variables:
+  azure_region: 'uksouth'
+  company: 'MSDN'
+  devServiceConn: 'DomMSDN'

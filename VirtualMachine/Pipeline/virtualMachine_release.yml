@@ -1,0 +1,143 @@
+parameters:
+  - name: stage_name
+  - name: environment
+  - name: location
+  - name: company
+  - name: serviceConn
+
+stages:
+- stage: ${{ parameters.stage_name }}
+  jobs:
+  - deployment: DeployVirtualMachine
+    environment: ${{ parameters.environment }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: none
+          - checkout: self
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Create Resource Group for deployment resources
+            inputs:
+              deploymentScope: Subscription
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Resource-Group.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\VirtualMachine\Resource-Group.parameters.json
+              overrideParameters:
+                -environment ${{ upper(parameters.environment) }}
+                -location ${{ parameters.location }}
+              deploymentMode: Incremental
+              deploymentOutputs: 'deploymentRG'
+
+          - task: AzurePowerShell@4
+            displayName: Get the resource group name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: |
+                $var=ConvertFrom-Json '$(deploymentRG)'
+                $value=$var.resourceGroup_Name.value
+                Write-Host "##vso[task.setvariable variable=deploymentRG_Name;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Create a storage account for deployment resources
+            inputs:
+              deploymentScope: Resource Group
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              action: Create Or Update Resource Group
+              resourceGroupName: $(deploymentRG_Name)
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\Storage-Account.json
+              overrideParameters:
+                -environment ${{ parameters.environment }}
+                -company ${{ parameters.company }}
+                -suffix "ARMTemplates"
+                -resourceTags {"usage":"ARM Templates"}
+              deploymentMode: Incremental
+              deploymentOutputs: 'storageOutput'
+
+          - task: AzurePowerShell@4
+            displayName: Get the storage account name
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: |
+                $var=ConvertFrom-Json '$(storageOutput)'
+                $value=$var.storageAccount_Name.value
+                Write-Host "##vso[task.setvariable variable=storageAccountName;]$value"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzureFileCopy@3
+            displayName: Copy deployment artifacts to the storage account
+            inputs:
+              sourcePath: '$(System.DefaultWorkingDirectory)\Artifacts'
+              azureSubscription: ${{ parameters.serviceConn }}
+              destination: azureBlob
+              storage: $(storageAccountName)
+              containerName: 'armtemplates'
+              cleanTargetBeforeCopy: true
+              outputStorageUri: artifactsLocation
+              outputStorageContainerSasToken: artifactsLocationSasToken
+              sasTokenTimeOutInMinutes: 30
+
+          - task: AzurePowerShell@4
+            displayName: Create password
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              scriptType: InlineScript
+              Inline: | 
+                . $(System.DefaultWorkingDirectory)\Artifacts\functions.ps1
+
+                # Create a password
+                $adminPassword = New-Password -Length 16
+
+                # Store the variable for later use
+                Write-Host "##vso[task.setvariable variable=adminPassword;]$adminPassword"
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: Deploy Virtual Machine resources
+            inputs:
+              deploymentScope: 'Resource Group'
+              azureResourceManagerConnection: ${{ parameters.serviceConn }}
+              action: Create Or Update Resource Group
+              resourceGroupName: $(deploymentRG_Name)
+              location: ${{ parameters.location }}
+              templateLocation: Linked artifact
+              csmFile: $(System.DefaultWorkingDirectory)\Artifacts\VirtualmachineLinkedTemplate.json
+              csmParametersFile: $(System.DefaultWorkingDirectory)\VirtualMachine\VirtualMachineLinkedTemplate.parameters.json
+              overrideParameters:
+                -environment ${{ parameters.environment }}
+                -adminUserName "localAdmin"
+                -adminPassword $(adminPassword)
+                -_artifactsLocation $(artifactsLocation)
+                -_artifactsLocationSasToken $(artifactsLocationSasToken)
+              deploymentMode: Incremental
+              deploymentOutputs: 'VirtualMachineOutput'
+         
+          - task: AzurePowerShell@4
+            displayName: Get outputs
+            inputs:
+              azureSubscription: ${{ parameters.serviceConn }}
+              ScriptType: InlineScript
+              Inline: |
+                New-Item -Path $(Pipeline.Workspace) -Name Variables -ItemType Directory
+
+                $virtualMachineOutputs = @{}
+                Get-ChildItem env:VIRTUALMACHINEOUTPUT_* | ForEach-Object {$virtualMachineOutputs.Add($_.Name,$_.Value.Replace("""",""))}
+                $virtualMachineOutputs.GetEnumerator() | Select-Object Name, Value | Export-Csv -Path $env:PIPELINE_WORKSPACE\Variables\${{ parameters.environment }}-virtualmachine.csv -IncludeTypeInformation:$false
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+          
+          - task: PublishPipelineArtifact@1
+            displayName: Publish Variables
+            inputs:
+              targetPath: $(Pipeline.Workspace)\Variables
+              artifactName: ${{ parameters.environment }}-Variables
