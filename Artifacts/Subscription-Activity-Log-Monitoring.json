@@ -1,5 +1,5 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
         "connectActivityLog":{
@@ -20,7 +20,7 @@
                 "description": "The name of the diagnostic setting"
             }
         },
-        "logAnalyticsWorkspaceName":{
+        "logAnalyticsWorkspaceId":{
             "type": "string",
             "metadata": {
                 "description": "The name of the log analytics workspace to connect to."
@@ -31,13 +31,13 @@
     },
     "resources": [
         {
-            "condition": "[equals(parameters('connectActivityLog'), 'Yes')]",
+                
             "type": "Microsoft.Insights/diagnosticSettings",
             "apiVersion": "2017-05-01-preview",
             "name": "[parameters('activityLogSettingsName')]",
             "dependsOn": [],
             "properties": {
-                "workspaceId": "[parameters('logAnalyticsWorkspaceName')]",
+                "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
                 "logs": [
                     {
                         "category": "Administrative",
@@ -76,6 +76,10 @@
         }
     ],
     "outputs":{
-
+        "SubscriptionActivityLog_Id": {
+            "condition": "[equals(parameters('connectActivityLog'), 'Yes')]",
+            "type": "string",
+            "value": "[resourceId('Microsoft.Insights/diagnosticSettings', parameters('activityLogSettingsName'))]"
+        }
     }
 }
