@@ -30,6 +30,17 @@
                 "description": "used to generate a random string"
             }
         },
+        "allowBlobPublicAccess": {
+            "type": "bool",
+            "defaultValue": false,
+            "allowedValues": [
+                true,
+                false
+            ],
+            "metadata": {   
+                "desciption": "Should the storage account be public - no by default but maybe useful for demoing stuff"
+            }
+        },
         "deployContainer": {
             "type": "string",
             "defaultValue": "No",
@@ -47,6 +58,18 @@
                 "Container1",
                 "Container2"
             ]
+        },
+        "containerPublicAccess": {
+            "type": "string",
+            "defaultValue": "none",
+            "allowedValues": [
+                "none",
+                "Blob",
+                "Container"
+            ],
+            "metadata": {
+                "desciption": "Used in conjunction with allowBlobPublicAccess"
+            }
         },
         "accountSasProperties": {
             "type": "object",
@@ -89,7 +112,7 @@
             },
             "properties": {
                 "accessTier": "Hot",
-                "allowBlobPublicAccess": false
+                "allowBlobPublicAccess": "[parameters('allowBlobPublicAccess')]"
             }
         },
         {
@@ -105,7 +128,7 @@
                 "count": "[length(parameters('containerName'))]"
             },
             "properties": {
-                "publicAccess": "None"
+                "publicAccess": "[parameters('containerPublicAccess')]"
             }
         }
     ],

@@ -85,8 +85,20 @@
                 false
             ]
         },
+        "enableDiagnosticLogging": {
+            "type": "string",
+            "defaultValue": "No",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
+            "metadata": {
+                "description": "Should diagnostic logging be enabled - if so requires log analytics workspace."
+            }
+        },
         "logAnalyticsWorkspace_Id":{
             "type": "string",
+            "defaultValue": "",
             "metadata": {
                 "description": "The workspace, key vault will use for diagnostic logging"
             }
@@ -95,6 +107,12 @@
             "type": "string",
             "metadata": {
                 "description": "the object Id of the Key Vault Admin Group."
+            }
+        },
+        "certificatesOfficerGroup": {
+            "type": "string",
+            "metadata": {
+                "desciption": "the object Id of the certificate officers group."
             }
         }
     },
@@ -105,7 +123,8 @@
             "usage": "[parameters('kvUsage')]"
         },
         "keyVault_Id": "[resourceId('Microsoft.KeyVault/vaults', variables('Name'))]",
-        "Key Vault Administrator": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefintions/', '00482a5a-887f-4fb3-b363-3b7fe8e74483')]"
+        "Key Vault Administrator": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefintions/', '00482a5a-887f-4fb3-b363-3b7fe8e74483')]",
+        "Key Vault Certificates Officer": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefintions/', 'a4417e6f-fecd-4de8-b567-7b0420556985')]"
     },
     "resources": [
         {
@@ -131,46 +150,58 @@
                     "defaultAction": "Allow",
                     "bypass": "AzureServices"
                 }
-            },
-            "resources":[
-                {
-                    "type": "Microsoft.KeyVault/vaults/providers/diagnosticSettings",
-                    "name": "[concat(variables('Name'), '/Microsoft.Insights/service')]",
-                    "apiVersion":"2016-09-01",
-                    "location":"[resourceGroup().location]",
-                    "dependsOn":[
-                        "[variables('keyVault_Id')]"
-                    ],
-                    "properties":{
-                        "workspaceId":"[parameters('logAnalyticsWorkspace_Id')]",
-                        "logs": [
-                            {
-                                "category": "AuditEvent",
-                                "enabled": true
-                            }
-                        ],
-                        "metrics": [
-                            {
-                                "category": "AllMetrics",
-                                "enabled": true
-                            }
-                        ]
+            }
+        },
+        {
+            "condition": "[equals(parameters('enableDiagnosticLogging'), 'Yes')]",
+            "type": "Microsoft.KeyVault/vaults/providers/diagnosticSettings",
+            "name": "[concat(variables('Name'), '/Microsoft.Insights/service')]",
+            "apiVersion":"2016-09-01",
+            "location":"[resourceGroup().location]",
+            "dependsOn":[
+                "[variables('keyVault_Id')]"
+            ],
+            "properties":{
+                "workspaceId":"[parameters('logAnalyticsWorkspace_Id')]",
+                "logs": [
+                    {
+                        "category": "AuditEvent",
+                        "enabled": true
                     }
-                },
-                {
-                    "type": "Microsoft.KeyVault/vaults/providers/roleAssignments",
-                    "apiVersion": "2020-04-01-preview",
-                    "name": "[concat(variables('Name'), '/Microsoft.Authorization/', guid(uniqueString(concat(toUpper(parameters('keyVaultAdminGroup')), variables('Name')))))]",
-                    "location": "[parameters('location')]",
-                    "dependsOn":[
-                        "[variables('keyVault_Id')]"
-                    ],
-                    "properties": {
-                        "roleDefinitionId": "[variables('Key Vault Administrator')]",
-                        "principalId": "[parameters('keyVaultAdminGroup')]"
+                ],
+                "metrics": [
+                    {
+                        "category": "AllMetrics",
+                        "enabled": true
                     }
-                }
-            ]
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/providers/roleAssignments",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[concat(variables('Name'), '/Microsoft.Authorization/', guid(uniqueString(concat(toUpper(parameters('keyVaultAdminGroup')), variables('Name')))))]",
+            "location": "[parameters('location')]",
+            "dependsOn":[
+                "[variables('keyVault_Id')]"
+            ],
+            "properties": {
+                "roleDefinitionId": "[variables('Key Vault Administrator')]",
+                "principalId": "[parameters('keyVaultAdminGroup')]"
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/providers/roleAssignments",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[concat(variables('Name'), '/Microsoft.Authorization/', guid(uniqueString(concat(toUpper(parameters('certificatesOfficerGroup')), variables('Name')))))]",
+            "location": "[parameters('location')]",
+            "dependsOn":[
+                "[variables('keyVault_Id')]"
+            ],
+            "properties": {
+                "roleDefinitionId": "[variables('Key Vault Certificates Officer')]",
+                "principalId": "[parameters('certificatesOfficerGroup')]"
+            }
         }
     ],
     "outputs": {

@@ -1,0 +1,183 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "DnsZoneNames": {
+            "type": "array",
+            "metadata": {
+                "description": "the zone name, must be a valid"
+            }
+        },
+        "deployARecord": {
+            "type": "string",
+            "defaultValue": "No",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
+            "metadata": {
+                "description": "Determine whether an A record should be deployed"
+            }
+        },
+        "A_DnsZoneRecords": {
+            "type": "object",
+            "defaultValue": {
+                "records": [
+                    {
+                        "Name": "domain.com",
+                        "Record": "www",
+                        "ipV4Address": "1.0.0.1"
+
+                    }
+                ]
+            },
+            "metadata": {
+                "description": "An array of record names, types and values"
+            }
+        },
+        "deployCNAMERecord": {
+            "type": "string",
+            "defaultValue": "No",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
+            "metadata": {
+                "description": "Determine whether a CNAME records should be deployed"
+            }
+        },
+        "CNAME_DnsZoneRecords": {
+            "type": "object",
+            "metadata": {
+                "description": "An array of record names, types and values"
+            }
+        },
+        "NS_DnsZoneRecords": {
+            "type": "object",
+            "metadata": {
+                "description": "An array of record names, types and values"
+            }
+        },
+        "resourceTags": {
+            "type": "object",
+            "defaultValue": {
+                "key": "value"
+            },
+            "metadata": {
+                "description": "Tags value pairs which get associated with the resource group"
+            }
+        },
+        "DNSTXTContributorId": {
+            "type": "string",
+            "metadata": {
+                "desciption": "The custom role created by the script: New-RoleDefintion.ps1"
+            }
+        },
+        "DNSTXTContributorsgroup": {
+            "type": "string",
+            "metadata": {
+                "description": "the object Id of the DNS TXT Contributors Group."
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Network/dnszones",
+            "apiVersion": "2018-05-01",
+            "name": "[parameters('DnsZoneNames')[copyIndex('dnsZones')]]",
+            "location": "global",
+            "tags": "[parameters('resourceTags')]",
+            "copy": {
+                "name": "dnsZones",
+                "mode": "Serial",
+                "count": "[length(parameters('DnsZoneNames'))]"
+            },
+            "properties": {
+                "zoneType": "Public"
+            }
+        },
+        {
+            "type": "Microsoft.Network/dnszones/SOA",
+            "apiVersion": "2018-05-01",
+            "name": "[concat(parameters('DnsZoneNames')[copyIndex('soaRecords')], '/@')]",
+            "dependsOn": [
+                "dnsZones"
+            ],
+            "copy": {
+                "name": "soaRecords",
+                "mode": "Serial",
+                "count": "[length(parameters('DnsZoneNames'))]"
+            },
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Network/dnszones/NS",
+            "apiVersion": "2018-05-01",
+            "name": "[concat(parameters('NS_DnsZoneRecords').records[copyIndex('nsRecords')].Name, '/', parameters('NS_DnsZoneRecords').records[copyIndex('nsRecords')].Record)]",
+            "dependsOn": [
+                "dnsZones"
+            ],
+            "copy": {
+                "name": "nsRecords",
+                "mode": "Serial",
+                "count": "[length(parameters('NS_DnsZoneRecords').records)]"
+            },
+            "properties":{}
+        },
+        {
+            "condition": "[equals(parameters('deployARecord'), 'Yes')]",
+            "type": "Microsoft.Network/dnszones/A",
+            "apiVersion": "2018-05-01",
+            "name": "[concat(parameters('A_DnsZoneRecords').records[copyIndex('aRecords')].Name, '/', parameters('A_DnsZoneRecords').records[copyIndex('aRecords')].Record)]",
+            "dependsOn": [
+                "dnsZones"
+            ],
+            "copy": {
+                "name": "aRecords",
+                "mode": "Serial",
+                "count": "[length(parameters('A_DnsZoneRecords').records)]"
+            },
+            "properties": {
+                "ipv4Address": "[parameters('A_DnsZoneRecords').records[copyIndex('aRecords').ipV4Address]]"
+            }
+        },
+        {
+            "condition": "[equals(parameters('deployCNAMERecord'), 'Yes')]",
+            "type": "Microsoft.Network/dnszones/CNAME",
+            "apiVersion": "2018-05-01",
+            "name": "[concat(parameters('CNAME_DnsZoneRecords').records[copyIndex('cnameRecords')].Name, '/', parameters('CNAME_DnsZoneRecords').records[copyIndex('cnameRecords')].Record)]",
+            "dependsOn": [
+                "dnsZones"
+            ],
+            "copy": {
+                "name": "cnameRecords",
+                "mode": "Serial",
+                "count": "[length(parameters('CNAME_DnsZoneRecords').records)]"
+            },
+            "properties": {
+                "TTL": 604800,
+                "CNAMERecord": {
+                    "cname": "[parameters('CNAME_DnsZoneRecords').records[copyIndex('cnameRecords')].Value]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/dnszones/providers/roleAssignments",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[concat(parameters('DnsZoneNames')[copyIndex('dnsZonesRbac')], '/Microsoft.Authorization/', guid(uniqueString(concat(toUpper(parameters('DNSTXTContributorsgroup')), parameters('DnsZoneNames')[copyIndex('dnsZonesRbac')]))))]",
+            "location": "global",
+            "dependsOn":[
+                "dnsZones"
+            ],
+            "copy": {
+                "name": "dnsZonesRbac",
+                "mode": "Serial",
+                "count": "[length(parameters('DnsZoneNames'))]"
+            },
+            "properties": {
+                "roleDefinitionId": "[parameters('DNSTXTContributorId')]",
+                "principalId": "[parameters('DNSTXTContributorsgroup')]"
+            }
+        }
+    ]
+}
