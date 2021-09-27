@@ -73,7 +73,7 @@
                 "desciption": "The custom role created by the script: New-RoleDefintion.ps1"
             }
         },
-        "DNSTXTContributorsgroup": {
+        "DNSTXTContributorsGroup": {
             "type": "string",
             "metadata": {
                 "description": "the object Id of the DNS TXT Contributors Group."
@@ -97,20 +97,6 @@
             }
         },
         {
-            "type": "Microsoft.Network/dnszones/SOA",
-            "apiVersion": "2018-05-01",
-            "name": "[concat(parameters('DnsZoneNames')[copyIndex('soaRecords')], '/@')]",
-            "dependsOn": [
-                "dnsZones"
-            ],
-            "copy": {
-                "name": "soaRecords",
-                "mode": "Serial",
-                "count": "[length(parameters('DnsZoneNames'))]"
-            },
-            "properties": {}
-        },
-        {
             "type": "Microsoft.Network/dnszones/NS",
             "apiVersion": "2018-05-01",
             "name": "[concat(parameters('NS_DnsZoneRecords').records[copyIndex('nsRecords')].Name, '/', parameters('NS_DnsZoneRecords').records[copyIndex('nsRecords')].Record)]",
@@ -122,7 +108,9 @@
                 "mode": "Serial",
                 "count": "[length(parameters('NS_DnsZoneRecords').records)]"
             },
-            "properties":{}
+            "properties":{
+                
+            }
         },
         {
             "condition": "[equals(parameters('deployARecord'), 'Yes')]",
@@ -176,7 +164,7 @@
             },
             "properties": {
                 "roleDefinitionId": "[parameters('DNSTXTContributorId')]",
-                "principalId": "[parameters('DNSTXTContributorsgroup')]"
+                "principalId": "[parameters('DNSTXTContributorsGroup')]"
             }
         }
     ]
