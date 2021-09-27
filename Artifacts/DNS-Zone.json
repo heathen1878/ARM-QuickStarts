@@ -150,20 +150,20 @@
             }
         },
         {
-            "type": "Microsoft.Network/dnszones/providers/roleAssignments",
+            "type": "Microsoft.Authorization/roleAssignments",
             "apiVersion": "2020-04-01-preview",
-            "name": "[concat(parameters('DnsZoneNames')[copyIndex('dnsZonesRbac')], '/Microsoft.Authorization/', guid(uniqueString(concat(toUpper(parameters('DNSTXTContributorsgroup')), parameters('DnsZoneNames')[copyIndex('dnsZonesRbac')]))))]",
-            "location": "global",
-            "dependsOn":[
+            "name": "[guid(concat(parameters('DNSTXTContributorsgroup')), parameters('DnsZoneNames')[copyIndex('dnsZonesRbac')])]",
+            "scope": "[concat('Microsoft.Network/dnszones/', parameters('DnsZoneNames')[copyIndex('dnsZonesRbac')])]",
+            "dependsOn": [
                 "dnsZones"
             ],
-            "copy": {
+           "copy": {
                 "name": "dnsZonesRbac",
                 "mode": "Serial",
                 "count": "[length(parameters('DnsZoneNames'))]"
             },
             "properties": {
-                "roleDefinitionId": "[parameters('DNSTXTContributorId')]",
+                "roleDefinitionId": "[concat(subscription().Id, '/providers/Microsoft.Authorization/roleDefinitions/', parameters('DNSTXTContributorId'))]",
                 "principalId": "[parameters('DNSTXTContributorsGroup')]"
             }
         }
