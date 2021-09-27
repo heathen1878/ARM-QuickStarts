@@ -31,9 +31,7 @@
         },
         "Locations": {
             "type": "array",
-            "defaultValue": [
-                ""
-            ],
+            "defaultValue": [],
             "metadata": {
                 "description": "list of valid locations"
             }
