@@ -2,13 +2,6 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "company":{
-            "type": "string",
-            "defaultValue": "XXX",
-            "metadata": {
-                "description": "Used for creating random strings where unique names are required."
-            }
-        },
         "environment" :{
             "type": "string",
             "defaultValue": "Demo",
@@ -18,12 +11,11 @@
         },
         "location": {
             "type": "string",
-            "defaultValue": "[resourceGroup().location]",
             "metadata": {
                 "description": "Location for all resources."
             }
         },
-        "suffix":{
+        "usage":{
             "type": "string",
             "defaultValue": "storage",
             "metadata":{
@@ -95,9 +87,8 @@
         }
     },
     "variables": {
-        "deploymentPrefix": "[concat('st', toLower(parameters('environment')))]",
-        "randomString": "[uniqueString(concat(parameters('company'), parameters('suffix'), parameters('location')))]",
-        "StorageAccountName": "[if(greater(length(concat(variables('deploymentPrefix'), variables('randomString'))),23), substring(replace(toLower(concat(variables('deploymentPrefix'), variables('randomString'))), '-', ''),0,23), toLower(concat(variables('deploymentPrefix'), variables('randomString'))))]" 
+        "storageAccountUniqueString": "[concat('st', uniquestring(parameters('environment'), parameters('location'), resourceGroup().id, parameters('usage')))]",
+        "storageAccountName": "[if(greater(length(variables('storageAccountUniqueString')),23), tolower(substring(replace(variables('storageAccountUniqueString'), '-', ''),0,23)), tolower(variables('storageAccountUniqueString')))]" 
     },
     "resources": [
         {
