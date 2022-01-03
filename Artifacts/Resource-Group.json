@@ -2,13 +2,6 @@
     "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "Company":{
-            "type": "string",
-            "metadata": {
-                "description": "Company name - this is optional and usually defined for enterprise deployments"
-            },
-            "defaultValue": ""
-        },
         "environment": {
             "type": "string",
             "defaultValue": "Demo",
@@ -64,8 +57,8 @@
         }
     },
     "variables": {
-        "resourceGroupPrefix": "[if(empty(parameters('Company')), concat('RG-', toUpper(parameters('environment'))), concat('RG-', toUpper(parameters('Company')), '-', toUpper(parameters('environment'))))]",
-        "resourceGroupName": "[concat(variables('resourceGroupPrefix'), '-', toUpper(parameters('usage')), '-', replace(toUpper(parameters('location')), ' ', ''))]",
+        "resourceGroupPrefix": "[concat('rg-', uniquestring(toLower(parameters('environment')), toLower(parameters('location')), subscription().id))]",
+        "resourceGroupName": "[concat(variables('resourceGroupPrefix'), '-', toLower(parameters('usage')))]",
         "AllowedLocations": "[if(empty(parameters('Locations')), createArray(parameters('location')), parameters('Locations'))]",
         "rgLocationPolicyId": "/providers/Microsoft.Authorization/policyDefinitions/e765b5de-1225-4ba3-bd56-1ac6695af988",
         "resLocationPolicyId": "/providers/Microsoft.Authorization/policyDefinitions/e56962a6-4747-49cd-b67b-bf8b01975c4c"
