@@ -1,0 +1,98 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "The location of the resources - by default matches the resource group location"
+            }
+        },
+        "asServerName": {
+            "type": "String",
+            "metadata": {
+                "description": "The resource name of the as Server"
+            }
+        },
+        "onPremDataGateway_Id": {
+            "type": "String",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The resource Id of the On-premises Data Gateway"
+            }
+        },
+        "sku":{
+            "type": "object",
+            "metadata" : {
+                "description": "An object which describes the AS instance SKU"
+            }
+        },
+        "asAdministrators":{
+            "type": "array",
+            "defaultValue": [],
+            "metadata": {
+                "description": "An array of administrator UPNs"
+            }
+        },
+        "firewallRules": {
+            "type": "object",
+            "metadata": {
+                "description": "An array of firewall configurations"
+            }
+        },
+        "backupBlobContainerUri": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The storage account container uri - if null backups are disabled"
+            }
+        },
+        "resourceRBAC": {
+            "type": "array",
+            "defaultValue": [],
+            "metadata": {
+                "description": "An object of resource group RBAC assignments"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.AnalysisServices/servers",
+            "apiVersion": "2017-08-01",
+            "name": "[parameters('asServerName')]",
+            "location": "[parameters('location')]",
+            "sku": "[parameters('sku')]",
+            "properties": {
+                "managedMode": 1,
+                "asAdministrators": {
+                    "members": "[parameters('asAdministrators')]"
+                },
+                "gatewayDetails": "[if(empty(parameters('onPremDataGateway_Id')), json('null'), json(concat('{\"gatewayResourceId\": \"', parameters('onPremDataGateway_Id'), '\"}')))]",
+                "querypoolConnectionMode": "All",
+                "ipV4FirewallSettings": "[parameters('firewallRules')]",
+                "serverMonitorMode": 1,
+                "backupBlobContainerUri": "[if(empty(parameters('backupBlobContainerUri')), json('null'), parameters('backupBlobContainerUri'))]"
+            }
+        },
+        {
+            "condition": "[not(empty(parameters('resourceRBAC')))]",
+            "type": "Microsoft.AnalysisServices/servers/providers/roleAssignments",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[concat(parameters('asServerName'), '/Microsoft.Authorization/', guid(parameters('resourceRBAC')[copyIndex('RBAC')].principalId, parameters('resourceRBAC')[copyIndex('RBAC')].roleId))]",                
+            "dependsOn": [
+                "[resourceId('Microsoft.AnalysisServices/servers', parameters('asServerName'))]"
+            ],
+            "copy": {
+                "name": "RBAC",
+                "count": "[length(parameters('resourceRBAC'))]",
+                "mode": "serial"
+            },
+            "properties": {
+                "roleDefinitionId": "[ResourceId('Microsoft.Authorization/roleDefinitions', parameters('resourceRBAC')[copyIndex('RBAC')].roleId)]",
+                "principalId": "[parameters('resourceRBAC')[copyIndex('RBAC')].principalId]"
+            }
+        }
+    ]
+}
