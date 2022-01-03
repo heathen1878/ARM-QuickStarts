@@ -1,0 +1,243 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Specifies the location in which the VM should be deployed."
+            }
+        },
+        "state": {
+            "type": "string",
+            "defaultValue": "Disabled",
+            "metadata": {
+                "description": "Determines the state of the logic app; default is disabled so it doesn't execute on deployment."
+            }
+        },
+         "resourceName": {
+            "type": "String",
+            "metadata": {
+                "description": "Virtual Machine Name"
+            },
+            "defaultValue": ""
+        },
+        "scaleUp": {
+            "type": "string",
+            "metadata": {
+                "description": "Using the 24 hour clock, what time should the Synapse SQL pool resume?"
+            },
+            "defaultValue": "00:00"
+        },
+        "scaleDown": {
+            "type": "string",
+            "metadata": {
+                "description": "Using the 24 hour clock, what time should the Synapse SQL pool pause?"
+            },
+            "defaultValue": "00:00"
+        },
+        "DaysOfWeek": {
+            "type": "array",
+            "metadata": {
+                "description": "The days of the week the VM should run."
+            }
+        },
+        "scaleupSku":{
+            "type": "object",
+            "defaultValue": {
+                "capacity": 1,
+                "name": "S1",
+                "tier": "Standard"
+            },
+            "metadata": {
+                "description": "The AS plan"
+            }
+        },
+        "scaledownSku":{
+            "type": "object",
+            "defaultValue": {
+                "capacity": 1,
+                "name": "S0",
+                "tier": "Standard"
+            },
+            "metadata": {
+                "description": "The AS plan"
+            }
+        },
+        "asModel": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The AS Model the scaling Logic App is associated with"
+            }
+        }
+    },
+    "variables": {
+        "scaleDown": "[concat(parameters('resourceName'),'-scale-down-', parameters('asModel'))]",
+        "scaleUp": "[concat(parameters('resourceName'),'-scale-up-', parameters('asModel'))]",
+        "Contributor": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefintions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[variables('scaleUp')]",
+            "location": "[parameters('location')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "state": "[parameters('state')]",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "asServerName": {
+                            "defaultValue": "[parameters('resourceName')]",
+                            "type": "String"
+                        },
+                        "resourceGroupName": {
+                            "defaultValue": "[resourceGroup().name]",
+                            "type": "String"
+                        },
+                        "subscriptionId": {
+                            "defaultValue": "[subscription().subscriptionId]",
+                            "type": "String"
+                        }
+                    },
+                    "triggers": {
+                        "ScaleUp": {
+                            "recurrence": {
+                                "frequency": "Week",
+                                "interval": 1,
+                                "schedule": {
+                                "hours": [
+                                    "[split(parameters('scaleUp'),':')[0]]"
+                                ],
+                                "minutes": [
+                                    "[split(parameters('scaleUp'),':')[1]]"
+                                ],
+                                "weekDays": "[parameters('DaysOfWeek')]"
+                                },
+                                "timeZone": "GMT Standard Time"
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "Patch_REST_API_Method": {
+                            "runAfter": {},
+                            "type": "Http",
+                            "inputs": {
+                                "authentication": {
+                                    "type": "ManagedServiceIdentity"
+                                },
+                                "body": {
+                                    "sku": "[parameters('scaleupSku')]"
+                                },
+                                "method": "PATCH",
+                                "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroupName')}/providers/Microsoft.AnalysisServices/servers/@{parameters('asServerName')}?api-version=2017-08-01"
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {}
+            }
+        },
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[variables('scaleDown')]",
+            "location": "[parameters('location')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "state": "[parameters('state')]",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "asServerName": {
+                            "defaultValue": "[parameters('resourceName')]",
+                            "type": "String"
+                        },
+                        "resourceGroupName": {
+                            "defaultValue": "[resourceGroup().name]",
+                            "type": "String"
+                        },
+                        "subscriptionId": {
+                            "defaultValue": "[subscription().subscriptionId]",
+                            "type": "String"
+                        }
+                    },
+                    "triggers": {
+                        "ScaleUp": {
+                            "recurrence": {
+                                "frequency": "Week",
+                                "interval": 1,
+                                "schedule": {
+                                "hours": [
+                                    "[split(parameters('scaleDown'),':')[0]]"
+                                ],
+                                "minutes": [
+                                    "[split(parameters('scaleDown'),':')[1]]"
+                                ],
+                                "weekDays": "[parameters('DaysOfWeek')]"
+                                },
+                                "timeZone": "GMT Standard Time"
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "Patch_REST_API_Method": {
+                            "runAfter": {},
+                            "type": "Http",
+                            "inputs": {
+                                "authentication": {
+                                    "type": "ManagedServiceIdentity"
+                                },
+                                "body": {
+                                    "sku": "[parameters('scaledownSku')]"
+                                },
+                                "method": "PATCH",
+                                "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroupName')}/providers/Microsoft.AnalysisServices/servers/@{parameters('asServerName')}?api-version=2017-08-01"
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {}
+            }
+        },
+        {
+            "type": "Microsoft.AnalysisServices/servers/providers/roleAssignments",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[concat(toUpper(parameters('resourceName')),'/Microsoft.Authorization/', guid(uniqueString(toUpper(variables('scaleUp')))))]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "roleDefinitionId": "[variables('Contributor')]",
+                "principalId": "[reference(variables('scaleUp'), '2017-07-01', 'Full').Identity.principalId]"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Logic/workflows', variables('scaleUp'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.AnalysisServices/servers/providers/roleAssignments",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[concat(toUpper(parameters('resourceName')),'/Microsoft.Authorization/', guid(uniqueString(toUpper(variables('scaleDown')))))]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "roleDefinitionId": "[variables('Contributor')]",
+                "principalId": "[reference(variables('scaleDown'), '2017-07-01', 'Full').Identity.principalId]"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Logic/workflows', variables('scaleDown'))]"
+            ]
+        }
+    ]
+}
