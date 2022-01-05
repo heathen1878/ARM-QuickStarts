@@ -18,3 +18,6 @@
 
 ## Identity Landing Zone 
 [Domain Controllers](/Identity/readme.md)
+
+## App Service - Cert - Custom Domain
+[App Service - Cert - Custom Domain](/AppService-Cert-CustomDomain/README.md)
