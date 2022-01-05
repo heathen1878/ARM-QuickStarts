@@ -1,0 +1,634 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment": {
+            "type": "string",
+            "defaultValue": "Demo",
+            "metadata": {
+                "description": "Prod, Dev, Test, PoC, and Demo"
+            }
+        },
+        "usage":{
+            "type": "string",
+            "defaultValue": "usage",
+            "metadata": {
+                "description": "Used to build the resource group name e.g. identity resources would live in a resource group which contains the word identity, an application might use APP1"
+            }
+        },
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "The location of the resource group"
+            }
+        },
+        "Locations": {
+            "type": "array",
+            "defaultValue": [],
+            "metadata": {
+                "description": "list of valid locations"
+            }
+        },
+        "resourceTags": {
+            "type": "object",
+            "defaultValue": {
+                "key": "value"
+            },
+            "metadata": {
+                "description": "Tags value pairs which get associated with the resource group"
+            }
+        },
+        "DedicatedSubscription":{
+            "type": "string",
+            "defaultValue": "Yes",
+            "allowedValues":[   
+                "Yes",
+                "No"
+            ],
+            "metadata":{
+                "description": "Dedicated subscriptions get Azure Policies deployed, If the connectivity and management resource groups exist within the same subscription only one should be set to Yes."
+            }
+        },
+        "RBAC": {
+            "type": "array",
+            "metadata": {
+                "description": "An object of resource group RBAC assignments"
+            }
+        },
+        "skuName": {
+            "type": "string",
+            "defaultValue": "B1",
+            "allowedValues": [
+                "F1",
+                "D1",
+                "B1",
+                "B2",
+                "B3",
+                "S1",
+                "S2",
+                "S3",
+                "P1",
+                "P2",
+                "P3",
+                "P4"
+            ],
+            "metadata": {
+                "description": "Describes plan's pricing tier and instance size. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
+            }
+        },
+        "hostName": {
+            "type": "string",
+            "metadata": {
+                "description": "The custom host name for the website e.g. www.domain.com"
+            }
+        },
+        "keyVault_Id": {
+            "type": "string",
+            "metadata": {
+                "description": "The key vault id where the certificate exists"
+            }
+        },
+        "secret_Name": {
+            "type": "string",
+            "metadata": {
+                "description": "The key vault secret name of the certificate"
+            }
+        }   
+    },
+    "variables": {
+        "resourceGroupPrefix": "[concat('rg-', uniquestring(toLower(parameters('environment')), toLower(parameters('location')), toLower(subscription().id)))]",
+        "resourceGroupName": "[concat(variables('resourceGroupPrefix'), '-', toLower(parameters('usage')))]",
+        "dnsZoneResourceGroupName": "[concat('rg-', uniqueString('global', toLower(subscription().id)), '-dns')]",
+        "AllowedLocations": "[if(empty(parameters('Locations')), createArray(parameters('location')), parameters('Locations'))]",
+        "rgLocationPolicyId": "/providers/Microsoft.Authorization/policyDefinitions/e765b5de-1225-4ba3-bd56-1ac6695af988",
+        "resLocationPolicyId": "/providers/Microsoft.Authorization/policyDefinitions/e56962a6-4747-49cd-b67b-bf8b01975c4c",
+        "environmentTag":{
+            "environment": "[parameters('environment')]"
+        },
+        "defaultTags": "[union(variables('environmentTag'), parameters('resourceTags'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/resourceGroups",
+            "apiVersion": "2021-04-01",
+            "name": "[variables('resourceGroupName')]",
+            "location": "[parameters('location')]",
+            "tags": "[variables('defaultTags')]"
+        },
+        {
+            "condition": "[equals(parameters('DedicatedSubscription'), 'Yes')]",
+            "type": "Microsoft.Authorization/policyAssignments",
+            "apiVersion": "2019-09-01",
+            "name": "[guid(variables('rgLocationPolicyId'), parameters('Location'))]",
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+            ],
+            "properties":{
+                "displayName": "[concat('Allowed Locations for Resource Groups: ', replace(replace(replace(string(variables('AllowedLocations')), '[\"', ''), '\"]', ''), '\",\"' , '-'))]",
+                "policyDefinitionId": "[variables('rgLocationPolicyId')]",
+                "parameters":{
+                "listOfAllowedLocations": {
+                        "value": "[variables('allowedLocations')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-10-01",
+            "name": "[guid(parameters('RBAC')[copyIndex('RBAC')].principalId, parameters('RBAC')[copyIndex('RBAC')].roleId, resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName')))]",
+            "copy": {
+                "name": "RBAC",
+                "count": "[length(parameters('RBAC'))]"
+            },
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+            ],
+            "resourceGroup": "[variables('resourceGroupName')]",            
+            "properties": {
+                "mode": "incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/roleAssignments",
+                            "apiVersion": "2017-09-01",
+                            "name": "[guid(parameters('RBAC')[copyIndex('RBAC')].principalId, parameters('RBAC')[copyIndex('RBAC')].roleId, resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName')))]",                
+                            "properties": {
+                                "roleDefinitionId": "[ResourceId('Microsoft.Authorization/roleDefinitions', parameters('RBAC')[copyIndex('RBAC')].roleId)]",
+                                "principalId": "[parameters('RBAC')[copyIndex('RBAC')].principalId]"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-10-01",
+            "name": "AllowedLocationsForResources",
+            "dependsOn":[
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+            ],
+            "resourceGroup": "[variables('resourceGroupName')]",            
+            "properties": {
+                "mode": "incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/policyAssignments",
+                            "apiVersion": "2019-09-01",
+                            "name": "[guid(variables('resLocationPolicyId'), parameters('Location'))]",
+                            "properties":{
+                                "displayName": "[concat('Allowed Locations for Azure Resources: ', replace(replace(replace(string(variables('AllowedLocations')), '[\"', ''), '\"]', ''), '\",\"' , '-'))]",
+                                "policyDefinitionId": "[variables('resLocationPolicyId')]",
+                                "parameters":{
+                                    "listOfAllowedLocations": {
+                                        "value": "[variables('allowedLocations')]"
+                                    } 
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createWebApp",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+            ],
+            "resourceGroup": "[variables('resourceGroupName')]",
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "Inner"
+                },
+                "parameters": {
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "usage": {
+                        "value": "[parameters('usage')]"
+                    },
+                    "resourceTags":{
+                        "value": "[parameters('resourceTags')]"
+                    },
+                    "skuName": {
+                        "value": "[parameters('skuName')]"
+                    },
+                    "keyVault_Id": {
+                        "value": "[parameters('keyVault_Id')]"
+                    },
+                    "secret_Name": {
+                        "value": "[parameters('secret_Name')]"
+                    }
+                },
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "environment": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "Prod, Dev, Test, PoC, and Demo"
+                            },
+                            "defaultValue": "Demo"
+                        },
+                        "location": {
+                            "type": "string",
+                            "defaultValue": "[resourceGroup().location]",
+                            "metadata": {
+                                "description": "The location of the resource; inherits the resource group configuration."
+                            }
+                        },
+                        "usage": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "Application or service e.g. APP1 or ARM"
+                            },
+                            "defaultValue": ""
+                        },
+                        "resourceTags": {
+                            "type": "object",
+                            "defaultValue": {
+                                "key": "value"
+                            },
+                            "metadata": {
+                                "description": "Tags value pairs which get associated with the resource group"
+                            }
+                        },
+                        "skuName": {
+                            "type": "string",
+                            "defaultValue": "F1",
+                            "allowedValues": [
+                                "F1",
+                                "D1",
+                                "B1",
+                                "B2",
+                                "B3",
+                                "S1",
+                                "S2",
+                                "S3",
+                                "P1",
+                                "P2",
+                                "P3",
+                                "P4"
+                            ],
+                            "metadata": {
+                                "description": "Describes plan's pricing tier and instance size. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
+                            }
+                        },
+                        "skuCapacity": {
+                            "type": "int",
+                            "defaultValue": 1,
+                            "maxValue": 3,
+                            "minValue": 1,
+                            "metadata": {
+                                "description": "Describes plan's instance count"
+                            }
+                        }, 
+                        "keyVault_Id": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "The key vault id where the certificate exists"
+                            }
+                        },
+                        "secret_Name": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "The key vault secret name of the certificate"
+                            }
+                        },
+                        "deployDatabaseConnection": {
+                            "type": "string",
+                            "allowedValues": [
+                                "Yes",
+                                "No"
+                            ],
+                            "defaultValue": "No",
+                            "metadata": {
+                                "desciption": "Should a connecton string be created? - requires the sqlServer_Name, sqlServerDatabase_Name and administratorLoginPassword be populated."
+                            }
+                        },
+                        "sqlServer_Name": {
+                            "type": "string",
+                            "defaultValue": "",
+                            "metadata": {
+                                "desciption": "The resource name of the Azure SQL server this web app will use"
+                            }
+                        },
+                        "sqlServerDatabase_Name": {
+                            "type": "string",
+                            "defaultValue": "",
+                            "metadata": {
+                                "desciption": "The resource name of the Azure SQL database this web app will use"
+                            }
+                        },
+                        "administratorLoginPassword": {
+                            "type": "securestring",
+                            "defaultValue": "",
+                            "metadata": {
+                                "desciption": "Passed into the template using either a key vault reference, pipeline var or variable at runtime."
+                            }
+                        }
+                    },
+                    "variables": {
+                        "serverFarmName": "[concat('plan-', uniqueString(parameters('environment'), parameters('location'), resourceGroup().id, parameters('usage')))]",
+                        "appServiceName": "[concat('app-', uniqueString(parameters('environment'), parameters('location'), resourceGroup().id, subscription().id), parameters('usage'))]",
+                        "appServiceCertificate": "[concat('cert-', variables('appServiceName'))]",
+                        "resourceSpecificTags":{
+                            "usage": "[parameters('usage')]",
+                            "environment": "[parameters('environment')]"
+                        },
+                        "tags": "[union(variables('resourceSpecificTags'), parameters('resourceTags'))]",
+                        "applicationInsightsName": "[concat('appi-', variables('appServiceName'))]"
+                    },
+                    "resources": [
+                        {
+                            "type": "Microsoft.Insights/components",
+                            "apiVersion": "2020-02-02",
+                            "name": "[variables('applicationInsightsName')]",
+                            "location": "[parameters('location')]",
+                            "tags": "[variables('tags')]",
+                            "kind": "web",
+                            "properties": {
+                                "Application_Type": "web",
+                                "IngestionMode": "ApplicationInsights",
+                                "publicNetworkAccessForIngestion": "Enabled",
+                                "publicNetworkAccessForQuery": "Enabled"
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Web/serverfarms",
+                            "apiVersion": "2020-12-01",
+                            "name": "[variables('serverFarmName')]",
+                            "location": "[parameters('location')]",
+                            "tags": "[variables('tags')]",
+                            "sku": {
+                                "name": "[parameters('skuName')]",
+                                "capacity": "[parameters('skuCapacity')]"
+                            },
+                            "properties": {
+
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Web/sites",
+                            "apiVersion": "2020-12-01",
+                            "name": "[variables('appServiceName')]",
+                            "location": "[parameters('location')]",
+                            "tags": "[variables('tags')]",
+                            "properties": {
+                                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('serverFarmName'))]",
+                                "siteConfig": {
+                                    "appSettings": [
+                                        {
+                                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                                            "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')),'2020-02-02').InstrumentationKey]"
+                                        },
+                                        {
+                                            "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                                            "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')),'2020-02-02').ConnectionString]"
+                                        },
+                                        {
+                                            "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+                                            "value": "~2"
+                                        },
+                                        {
+                                            "name": "APPINSIGHTS_JAVASCRIPT_ENABLED",
+                                            "value": "true"
+                                        }
+                                    ]
+                                }
+                            },
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Web/serverfarms', variables('serverFarmName'))]",
+                                "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+                            ]
+                        },
+                        {
+                            "type": "Microsoft.Web/certificates",
+                            "apiVersion": "2019-08-01",
+                            "name": "[variables('appServiceCertificate')]",
+                            "location": "[parameters('location')]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Web/sites', variables('appServiceName'))]"
+                            ],
+                            "properties": {
+                                "keyVaultId": "[parameters('keyVault_Id')]",
+                                "keyVaultSecretName": "[parameters('secret_Name')]",
+                                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('serverFarmName'))]"
+                            }
+                        },
+                        {
+                            "condition": "[equals(parameters('deployDatabaseConnection'), 'Yes')]",
+                            "type": "Microsoft.Web/sites/config",
+                            "apiVersion": "2020-12-01",
+                            "name": "[concat(variables('appServiceName'), '/connectionStrings')]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Web/sites', variables('appServiceName'))]",
+                                "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+                            ],
+                            "properties": {
+                                "default": {
+                                    "value": "[if(equals(parameters('deployDatabaseConnection'), 'Yes'), concat('Data Source=tcp:', reference(resourceId('Microsoft.Sql/servers', parameters('sqlServer_Name')), '2019-06-01-preview').fullyQualifiedDomainName, ',1433;Initial Catalog=', parameters('sqlServerDatabase_Name'), ';Persist Security Info=False;User ID=', reference(resourceId('Microsoft.Sql/servers', parameters('sqlServer_Name')), '2019-06-01-preview').administratorLogin, ';Password=', parameters('administratorLoginPassword'), ';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'), json('null') )]",
+                                    "type": "SQLAzure"
+                                }
+                            }
+                        }                       
+                    ],
+                    "outputs": {
+                        "webAppDomainVerificationId": {
+                            "type": "string",
+                            "value": "[reference(resourceId('Microsoft.Web/sites', variables('appServiceName')), '2020-12-01').customDomainVerificationId]"
+                        },
+                        "webAppHostName": {
+                            "type": "string",
+                            "value": "[reference(resourceId('Microsoft.Web/sites', variables('appServiceName')), '2020-12-01').name]"
+                        },
+                        "appServiceCertificate": {
+                            "type": "string",
+                            "value": "[variables('appServiceCertificate')]"
+                        }                        
+                    }
+                }
+            }    
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createDnsRecords",
+            "dependsOn":[
+                "createWebApp"
+            ],
+            "resourceGroup": "[variables('dnsZoneResourceGroupName')]",
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "Inner"
+                },
+                "parameters": {
+                    "zoneName": {
+                        "value": "[parameters('hostName')]"
+                    },
+                    "TXTRecordValue": {
+                        "value": "[reference('createWebApp').outputs.webAppDomainVerificationId.value]"
+                    },
+                    "CNAMERecordValue": {
+                        "value": "[reference('createWebApp').outputs.webAppHostName.value]"
+                    }                      
+                },
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "zoneName": {
+                            "type": "string",
+                            "defaultValue": "",
+                            "metadata": {
+                                "description": "The DNS Zone name"
+                            }
+                        },                    
+                        "TXTRecordValue": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "TXT Record value"
+                            }
+                        },
+                        "CNAMERecordValue": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "CNAME Record value"
+                            }
+                        }
+                    },
+                    "variables": {
+                        "DnsZone": "[skip(substring(parameters('zoneName'), indexOf(parameters('zoneName'), '.')), 1)]",
+                        "CNAMEName": "[substring(parameters('zoneName'), 0, indexOf(parameters('zoneName'), '.'))]",
+                        "TXTRecordName": "[concat('asuid.', variables('CNAMEName'))]"
+
+                    },
+                    "resources": [
+                        {
+                            "type": "Microsoft.Network/dnszones/TXT",
+                            "apiVersion": "2018-05-01",
+                            "name": "[concat(variables('DnsZone'), '/', variables('TXTRecordName'))]",
+                            "properties": {
+                                "TTL": 604800,
+                                "TXTRecords": [
+                                    {
+                                        "value": [
+                                            "[parameters('TXTRecordValue')]"
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Network/dnszones/CNAME",
+                            "apiVersion": "2018-05-01",
+                            "name": "[concat(variables('DnsZone'), '/', variables('CNAMEName'))]",
+                            "properties": {
+                                "TTL": 604800,
+                                "CNAMERecord": {
+                                    "cname": "[concat(parameters('CNAMERecordValue'), '.azurewebsites.net.')]"
+                                }
+                            }
+                        }
+                    ],
+                    "outputs": {
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-10-01",
+            "name": "createCustomDomain",
+            "dependsOn": [
+                "createDnsRecords"
+            ],
+            "resourceGroup": "[variables('resourceGroupName')]",
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "Inner"
+                },
+                "parameters": {
+                    "appServiceName": {
+                        "value": "[reference('createWebApp').outputs.webAppHostName.value]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "hostName": {
+                        "value": "[parameters('hostName')]"
+                    },
+                    "appServiceCertificate": {
+                        "value": "[reference('createWebApp').outputs.appServiceCertificate.value]"
+                    }
+                },
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "appServiceName": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "App Service Name from the CreateWebApp template"
+                            }
+                        },
+                        "location": {
+                            "type": "string",
+                            "defaultValue": "[resourceGroup().location]",
+                            "metadata": {
+                                "description": "The location of the resource; inherits the resource group configuration."
+                            }
+                        },
+                        "hostName": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "The custom host name for the website"
+                            }
+                        },
+                        "appServiceCertificate": {
+                            "type": "string",
+                            "metadata": {
+                                "description": "App Service Certificate Name from the CreateWebApp template"
+                            }
+                        }
+                    },
+                    "resources": [
+                        {
+                            "type": "Microsoft.Web/sites/hostnameBindings",
+                            "apiVersion": "2019-08-01",
+                            "name": "[concat(parameters('appServiceName'), '/', parameters('hostName'))]",
+                            "location": "[parameters('location')]",
+                            "properties": {
+                                "sslState": "SniEnabled",
+                                "thumbprint": "[reference(resourceId('Microsoft.Web/certificates', parameters('appServiceCertificate')), '2019-08-01').Thumbprint]"
+                            }
+                        }
+                    ],
+                    "outputs": {
+
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+    }
+}
+
+
+
